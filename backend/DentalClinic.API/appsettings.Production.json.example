@@ -1,0 +1,19 @@
+{
+  "ConnectionStrings": {
+    "DentalClinicDb": "Server=YOUR_DB_SERVER;Port=3306;Database=dental_clinic_db;User=YOUR_DB_USER;Password=YOUR_DB_PASSWORD;TreatTinyAsBoolean=true;"
+  },
+  "Jwt": {
+    "Secret": "YOUR_SECURE_RANDOM_JWT_SECRET_MIN_32_CHARS",
+    "Issuer": "DentalClinic.API",
+    "Audience": "DentalClinic.Client",
+    "ExpirationMinutes": 480
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}

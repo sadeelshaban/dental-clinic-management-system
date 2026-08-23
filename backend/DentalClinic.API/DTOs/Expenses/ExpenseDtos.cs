@@ -278,7 +278,7 @@ public class CreateExpensePaymentRequest
     [Required]
     public ulong? ExpenseId { get; set; }
 
-    /// <summary>Must be > 0 and <= remaining balance. Overpayments are rejected.</summary>
+    /// <summary>Must be greater than 0 and less than or equal to remaining balance. Overpayments are rejected.</summary>
     [Required]
     [Range(0.01, 999999999)]
     public decimal? Amount { get; set; }

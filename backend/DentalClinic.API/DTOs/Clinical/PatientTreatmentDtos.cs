@@ -76,7 +76,7 @@ public class CreatePatientTreatmentRequest
     [Range(0, 999999999)]
     public decimal? UnitPrice { get; set; }
 
-    /// <summary>Defaults to 0. Must be >= 0 and <= quantity × unit_price.</summary>
+    /// <summary>Defaults to 0. Must be greater than or equal to 0 and less than or equal to quantity multiplied by unit_price.</summary>
     [Range(0, 999999999)]
     public decimal? DiscountAmount { get; set; }
 

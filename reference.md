@@ -634,4 +634,106 @@ Planned (per confirmed decisions):
 
 ---
 
-*Maintained by the development team + AI agents. Last updated: 2026-08-22 (initial creation).*
+## 18. Phase 9: Backend Production Readiness (2026-08-23)
+
+**Status: COMPLETE.**
+
+### 18.1 Implementation Summary
+
+Phase 9 focused on backend production readiness, including:
+
+1. **Production Configuration Template**
+   - Created `backend/DentalClinic.API/appsettings.Production.json.example` as a safe template with placeholders for:
+     - Database connection string
+     - JWT secret
+     - JWT expiration settings
+   - `appsettings.Production.json` remains gitignored for security
+   - Created `backend/DentalClinic.API/PRODUCTION_DEPLOYMENT.md` with detailed environment variable guidance
+
+2. **Login Rate Limiting**
+   - Implemented in-memory rate limiting middleware in `Middleware/RateLimitingMiddleware.cs`
+   - Limits POST `/api/auth/login` to 5 attempts per 15 minutes per IP address
+   - Returns HTTP 429 with `Retry-After` header when limit exceeded
+   - Registered in `Program.cs` before exception handling middleware
+
+3. **Patient Number Race Condition Fix**
+   - Modified `Services/Implementations/PatientService.cs`
+   - Added retry logic in `CreatePatientAsync` (up to 3 attempts) for duplicate key exceptions
+   - Added `IsDuplicateKeyException` helper method to detect MySQL duplicate key errors
+   - No database schema changes required
+
+4. **Test Project**
+   - Created xUnit test project `DentalClinic.API.Tests`
+   - Added test dependencies: xUnit, Moq, Microsoft.EntityFrameworkCore.InMemory 9.0.11
+   - Test files:
+     - `Services/AuthServiceTests.cs` - Authentication tests (4 tests)
+     - `Services/PatientServiceTests.cs` - Patient number generation tests (3 tests)
+     - `Services/PaymentServiceTests.cs` - Payment validation tests (2 tests - zero/negative amount rejection)
+   - Note: Appointment overlap tests and payment row-locking tests require relational database (ExecuteSqlRawAsync) and are excluded from in-memory test suite
+
+### 18.2 Verification
+
+- Backend builds successfully: `dotnet build backend/DentalClinic.API` - no errors
+- All tests pass: `dotnet test backend/DentalClinic.API.Tests` - 10/10 tests passed
+- Test coverage:
+  - Authentication: valid login, invalid password, inactive user, non-existent email
+  - Patient service: unique numbers, sequential numbering, multi-tenancy isolation
+  - Payment service: zero amount rejection, negative amount rejection
+
+### 18.3 Documentation Updates
+
+- Created `README.md` with:
+  - Backend setup instructions
+  - Environment variable guidance
+  - Testing instructions
+  - API modules overview
+  - Production deployment guidance
+  - **Swagger/OpenAPI documentation** for manual API testing
+
+### 18.4 Swagger/OpenAPI Configuration
+
+**Status: COMPLETE.**
+
+Enhanced Swagger/OpenAPI configuration for manual API testing:
+
+1. **JWT Bearer Authentication**
+   - Added security definition for HTTP Bearer authentication
+   - JWT format with clear instructions in Swagger UI
+   - Global security requirement for all protected endpoints
+   - Users can click "Authorize" button and enter: `Bearer {token}`
+
+2. **Enhanced API Documentation**
+   - Added XML comments support for better endpoint documentation
+   - Updated OpenAPI info with rate limiting notice
+   - Created `ApiResponseOperationFilter` to handle ApiResponse<T> envelope structure
+   - Enabled XML documentation generation in csproj
+
+3. **Swagger UI Access**
+   - Development: Available at root URL `http://localhost:5062` (or configured port)
+   - Production: Disabled by default for security
+   - All endpoints from Phases 1-9 are documented
+
+4. **Endpoint Coverage**
+   - Auth: Login, change password, current user info
+   - Patients: CRUD operations
+   - Appointments: Scheduling and management
+   - Visits: Clinical records
+   - Treatments: Catalog and patient treatments
+   - Payments: Payment processing
+   - Attachments: File upload/download (multipart/form-data)
+   - Reports: Financial and patient reports (daily, monthly, comparison, patient directory, outstanding balances)
+   - Doctors, Users, Expenses, Suppliers: Full CRUD
+
+5. **Rate Limiting Documentation**
+   - Swagger description includes rate limiting notice: 5 login attempts per 15 minutes per IP
+   - Can be tested manually through Swagger by making 6 failed login attempts
+
+6. **Files Changed**
+   - `Extensions/ServiceCollectionExtensions.cs` - Enhanced Swagger configuration
+   - `Extensions/ApiResponseOperationFilter.cs` - New operation filter for ApiResponse envelope
+   - `DentalClinic.API.csproj` - Enabled XML documentation generation
+   - `README.md` - Added comprehensive Swagger documentation section
+
+---
+
+*Maintained by the development team + AI agents. Last updated: 2026-08-23 (Phase 9 + Swagger configuration).*

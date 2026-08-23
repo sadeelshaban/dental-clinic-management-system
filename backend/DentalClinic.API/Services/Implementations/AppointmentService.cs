@@ -606,8 +606,8 @@ public class AppointmentService(
     }
 
     /// <summary>
-    /// Two active appointments overlap when existing.start < requested.end AND
-    /// existing.end > requested.start. Only SCHEDULED and CONFIRMED block time;
+    /// Two active appointments overlap when existing.start is less than requested.end AND
+    /// existing.end is greater than requested.start. Only SCHEDULED and CONFIRMED block time;
     /// CANCELLED, NO_SHOW and COMPLETED never conflict. Back-to-back is allowed.
     /// </summary>
     private async Task EnsureNoOverlapAsync(

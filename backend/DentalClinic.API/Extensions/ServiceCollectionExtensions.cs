@@ -99,9 +99,24 @@ public static class ServiceCollectionExtensions
             {
                 Title = "Dental Clinic API",
                 Version = "v1",
-                Description = "ASP.NET Core API for dental clinic management (MariaDB 10.4)"
+                Description = "ASP.NET Core API for dental clinic management (MariaDB 10.4). " +
+                              "All endpoints except login require JWT Bearer authentication. " +
+                              "Rate limiting: 5 login attempts per 15 minutes per IP.",
+                Contact = new OpenApiContact
+                {
+                    Name = "Dental Clinic API Support"
+                }
             });
 
+            // Include XML comments for better documentation
+            var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+            if (File.Exists(xmlPath))
+            {
+                options.IncludeXmlComments(xmlPath);
+            }
+
+            // JWT Bearer Authentication
             options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
             {
                 Name = "Authorization",
@@ -109,7 +124,9 @@ public static class ServiceCollectionExtensions
                 Scheme = "Bearer",
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
-                Description = "Enter JWT token as: Bearer {token}"
+                Description = "JWT Authorization header using the Bearer scheme. " +
+                              "Enter 'Bearer' [space] and then your token in the text input below. " +
+                              "Example: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'"
             });
 
             options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -126,6 +143,9 @@ public static class ServiceCollectionExtensions
                     Array.Empty<string>()
                 }
             });
+
+            // Operation filter to handle ApiResponse<T> envelope
+            options.OperationFilter<ApiResponseOperationFilter>();
         });
 
         return services;

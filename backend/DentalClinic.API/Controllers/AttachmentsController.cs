@@ -23,6 +23,7 @@ public class AttachmentsController : ControllerBase
 
     [HttpPost("upload")]
     [Authorize(Roles = AppRoles.AdminOrSecretary)]
+    [Consumes("multipart/form-data")]
     public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromForm] ulong? patientId, [FromForm] ulong? patientTreatmentId)
     {
         // validate file

@@ -1,3 +1,4 @@
+using DentalClinic.API.Common;
 using DentalClinic.API.Data;
 using DentalClinic.API.DTOs.Common;
 using DentalClinic.API.DTOs.Patients;
@@ -77,36 +78,55 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
         CreatePatientRequest request,
         CancellationToken cancellationToken = default)
     {
-        var patientNumber = await GeneratePatientNumberAsync(clinicId, cancellationToken);
-
-        var patient = new Patient
+        const int maxRetries = 3;
+        
+        for (int attempt = 0; attempt < maxRetries; attempt++)
         {
-            ClinicId = clinicId,
-            PatientNumber = patientNumber,
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim(),
-            Phone = request.Phone?.Trim(),
-            Email = request.Email?.Trim().ToLowerInvariant(),
-            DateOfBirth = request.DateOfBirth,
-            Gender = NormalizeGender(request.Gender),
-            NationalId = request.NationalId?.Trim(),
-            Address = request.Address?.Trim(),
-            EmergencyContactName = request.EmergencyContactName?.Trim(),
-            EmergencyContactPhone = request.EmergencyContactPhone?.Trim(),
-            MedicalAlerts = request.MedicalAlerts?.Trim(),
-            Allergies = request.Allergies?.Trim(),
-            Medications = request.Medications?.Trim(),
-            MedicalHistory = request.MedicalHistory?.Trim(),
-            Notes = request.Notes?.Trim(),
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+            try
+            {
+                var patientNumber = await GeneratePatientNumberAsync(clinicId, cancellationToken);
 
-        dbContext.Patients.Add(patient);
-        await dbContext.SaveChangesAsync(cancellationToken);
+                var patient = new Patient
+                {
+                    ClinicId = clinicId,
+                    PatientNumber = patientNumber,
+                    FirstName = request.FirstName.Trim(),
+                    LastName = request.LastName.Trim(),
+                    Phone = request.Phone?.Trim(),
+                    Email = request.Email?.Trim().ToLowerInvariant(),
+                    DateOfBirth = request.DateOfBirth,
+                    Gender = NormalizeGender(request.Gender),
+                    NationalId = request.NationalId?.Trim(),
+                    Address = request.Address?.Trim(),
+                    EmergencyContactName = request.EmergencyContactName?.Trim(),
+                    EmergencyContactPhone = request.EmergencyContactPhone?.Trim(),
+                    MedicalAlerts = request.MedicalAlerts?.Trim(),
+                    Allergies = request.Allergies?.Trim(),
+                    Medications = request.Medications?.Trim(),
+                    MedicalHistory = request.MedicalHistory?.Trim(),
+                    Notes = request.Notes?.Trim(),
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
 
-        return MapToDetail(patient);
+                dbContext.Patients.Add(patient);
+                await dbContext.SaveChangesAsync(cancellationToken);
+
+                return MapToDetail(patient);
+            }
+            catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+            {
+                // Duplicate key error - retry with a new number
+                if (attempt == maxRetries - 1)
+                {
+                    throw new BusinessRuleException("Unable to generate a unique patient number. Please try again.");
+                }
+                // Continue to next retry
+            }
+        }
+
+        throw new BusinessRuleException("Unable to generate a unique patient number. Please try again.");
     }
 
     public async Task<PatientDetailDto?> UpdatePatientAsync(
@@ -185,18 +205,35 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
             .Select(p => p.PatientNumber)
             .FirstOrDefaultAsync(cancellationToken);
 
+        string newNumber;
+        
         if (lastNumber is null || !lastNumber.StartsWith('P'))
         {
-            return "P-00001";
+            newNumber = "P-00001";
         }
-
-        var numericPart = lastNumber.Split('-').LastOrDefault() ?? "0";
-        if (int.TryParse(numericPart, out var sequence))
+        else
         {
-            return $"P-{(sequence + 1):D5}";
+            var numericPart = lastNumber.Split('-').LastOrDefault() ?? "0";
+            if (int.TryParse(numericPart, out var sequence))
+            {
+                newNumber = $"P-{(sequence + 1):D5}";
+            }
+            else
+            {
+                newNumber = $"P-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            }
         }
 
-        return $"P-{DateTime.UtcNow:yyyyMMddHHmmss}";
+        return newNumber;
+    }
+
+    private static bool IsDuplicateKeyException(DbUpdateException ex)
+    {
+        // Check if the exception is due to a duplicate key constraint violation
+        return ex.InnerException != null && 
+               (ex.InnerException.Message.Contains("Duplicate entry") ||
+                ex.InnerException.Message.Contains("uq_patient_number") ||
+                ex.InnerException.Message.Contains("PRIMARY"));
     }
 
     private static string NormalizeGender(string? gender) =>

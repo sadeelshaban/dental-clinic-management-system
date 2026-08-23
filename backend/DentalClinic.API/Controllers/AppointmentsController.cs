@@ -14,7 +14,7 @@ namespace DentalClinic.API.Controllers;
 /// for them). ADMIN/SECRETARY manage the whole clinic; DOCTOR manages own appointments.
 ///
 /// Scheduling rules enforced in the service layer:
-/// - start < end (no zero-duration)
+/// - start less than end (no zero-duration)
 /// - within the clinic's working hours for that weekday; closed days rejected
 /// - start aligned to the 'appointment_slot_minutes' setting grid (when configured)
 /// - overlap prevention against SCHEDULED/CONFIRMED appointments of the same doctor

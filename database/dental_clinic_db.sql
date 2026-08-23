@@ -1945,6 +1945,8 @@ VALUES
 (@clinic_id, 'Oral Surgery'),
 (@clinic_id, 'Preventive'),
 (@clinic_id, 'Orthodontics'),
+(@clinic_id, 'Implant'),
+(@clinic_id, 'Aesthetic'),
 (@clinic_id, 'Other');
 
 
@@ -1988,7 +1990,32 @@ SET @preventive_category = (
     LIMIT 1
 );
 
+SET @prosthodontics_category = (
+    SELECT category_id
+    FROM treatment_categories
+    WHERE clinic_id = @clinic_id
+      AND name = 'Prosthodontics'
+    LIMIT 1
+);
 
+SET @implant_category = (
+    SELECT category_id
+    FROM treatment_categories
+    WHERE clinic_id = @clinic_id
+      AND name = 'Implant'
+    LIMIT 1
+);
+
+SET @aesthetic_category = (
+    SELECT category_id
+    FROM treatment_categories
+    WHERE clinic_id = @clinic_id
+      AND name = 'Aesthetic'
+    LIMIT 1
+);
+
+
+-- Jenin Dental Association fee schedule (2015). Range items use the listed starting fee.
 INSERT INTO treatments (
     clinic_id,
     category_id,
@@ -2003,54 +2030,216 @@ VALUES
 (
     @clinic_id,
     @diagnostic_category,
-    'Dental Examination',
-    'General dental examination',
+    'الاستشارة الطبية + فحص الفم الكامل لجميع الأسنان',
+    'لائحة أتعاب نقابة أطباء الأسنان — جنين 2015. Consultation + full oral exam. 50 ILS.',
     50.00,
     30
 ),
 
 (
     @clinic_id,
-    @diagnostic_category,
-    'Dental X-Ray',
-    'Dental radiographic examination',
-    30.00,
-    15
+    @surgery_category,
+    'القلع العادي',
+    'Regular extraction. 50 ILS.',
+    50.00,
+    30
 ),
 
 (
     @clinic_id,
-    @restorative_category,
-    'Composite Filling',
-    'Composite dental filling',
+    @surgery_category,
+    'قلع جراحي أو فصل جذور',
+    'Surgical extraction or root separation. Price according to the case (حسب الحالة). Default 0 — set the fee when recording the treatment.',
+    0.00,
+    45
+),
+
+(
+    @clinic_id,
+    @surgery_category,
+    'قلع ضرس العقل العادي بدون جراحة',
+    'Regular wisdom tooth extraction without surgery. 100 ILS.',
+    100.00,
+    40
+),
+
+(
+    @clinic_id,
+    @preventive_category,
+    'تنظيف الأسنان والتدريب على الحفاظ على صحة الفم والأسنان',
+    'Teeth cleaning and oral-health training. 100 ILS.',
     100.00,
     45
 ),
 
 (
     @clinic_id,
-    @endodontics_category,
-    'Root Canal Treatment',
-    'Root canal treatment',
-    500.00,
-    90
+    @preventive_category,
+    'إزالة الجير والتنظيف والصقل (scaling + polishing)',
+    'Scaling + polishing. Range 150–300 ILS; catalog default is the starting fee.',
+    150.00,
+    45
 ),
 
 (
     @clinic_id,
-    @surgery_category,
-    'Tooth Extraction',
-    'Routine tooth extraction',
-    150.00,
+    @restorative_category,
+    'حشوة الفضة ذات سطح واحد',
+    'Silver filling, 1 surface. 100 ILS.',
+    100.00,
     30
 ),
 
 (
     @clinic_id,
-    @preventive_category,
-    'Dental Cleaning',
-    'Professional dental cleaning',
+    @restorative_category,
+    'حشوة الفضة ذات سطحين',
+    'Silver filling, 2 surfaces. 150 ILS.',
+    150.00,
+    40
+),
+
+(
+    @clinic_id,
+    @restorative_category,
+    'حشوة الفضة ذات ثلاث أسطح',
+    'Silver filling, 3 surfaces. 250 ILS.',
+    250.00,
+    50
+),
+
+(
+    @clinic_id,
+    @restorative_category,
+    'حشوة تجميلية أمامية',
+    'Anterior aesthetic filling. Range 100–200 ILS; catalog default 100.',
     100.00,
+    40
+),
+
+(
+    @clinic_id,
+    @restorative_category,
+    'حشوة تجميلية خلفية',
+    'Posterior aesthetic filling. Range 100–200 ILS; catalog default 200.',
+    200.00,
+    45
+),
+
+(
+    @clinic_id,
+    @endodontics_category,
+    'حشوة عصب ذات قناة واحدة',
+    'Nerve filling, 1 canal. 150 ILS.',
+    150.00,
+    60
+),
+
+(
+    @clinic_id,
+    @endodontics_category,
+    'حشوة عصب ذات قناتين',
+    'Nerve filling, 2 canals. 200 ILS.',
+    200.00,
+    75
+),
+
+(
+    @clinic_id,
+    @endodontics_category,
+    'حشوة عصب ذات ثلاث قنوات',
+    'Nerve filling, 3 canals. 300 ILS.',
+    300.00,
+    90
+),
+
+(
+    @clinic_id,
+    @endodontics_category,
+    'إعادة علاج العصب',
+    'Nerve re-treatment. Range 400–600 ILS; catalog default 400.',
+    400.00,
+    90
+),
+
+(
+    @clinic_id,
+    @endodontics_category,
+    'بناء السن مع وتد',
+    'Tooth buildup with post. Range 300–500 ILS; catalog default 300.',
+    300.00,
+    45
+),
+
+(
+    @clinic_id,
+    @prosthodontics_category,
+    'طقم أسنان كامل علوي وسفلي',
+    'Full upper and lower dentures, by quality. Range 2000–4000 ILS; catalog default 2000.',
+    2000.00,
+    90
+),
+
+(
+    @clinic_id,
+    @prosthodontics_category,
+    'بارشال (طقم جزئي متحرك)',
+    'Partial denture: 300 ILS for one tooth, plus 100 ILS for each additional tooth.',
+    300.00,
+    60
+),
+
+(
+    @clinic_id,
+    @prosthodontics_category,
+    'فيتاليوم (كروم كوبالت) للقطعة الواحدة',
+    'Vitalium (chrome cobalt) per piece. 2000 ILS.',
+    2000.00,
+    60
+),
+
+(
+    @clinic_id,
+    @prosthodontics_category,
+    'قطعة البورسلين',
+    'Porcelain piece. Range 300–400 ILS; catalog default 300.',
+    300.00,
+    45
+),
+
+(
+    @clinic_id,
+    @prosthodontics_category,
+    'قطعة زرقون',
+    'Zirconium piece. Range 1200–2000 ILS; catalog default 1200.',
+    1200.00,
+    45
+),
+
+(
+    @clinic_id,
+    @implant_category,
+    'زراعة الأسنان للزراعة الواحدة',
+    'Dental implant per implant. Range 1500–2000 ILS; catalog default 1500.',
+    1500.00,
+    90
+),
+
+(
+    @clinic_id,
+    @aesthetic_category,
+    'الوجوه الخزفية لكل سن',
+    'Veneers per tooth. Range 1500–2000 ILS; catalog default 1500.',
+    1500.00,
+    60
+),
+
+(
+    @clinic_id,
+    @aesthetic_category,
+    'تبييض الأسنان',
+    'Teeth whitening. Range 500–1000 ILS; catalog default 500.',
+    500.00,
     45
 );
 

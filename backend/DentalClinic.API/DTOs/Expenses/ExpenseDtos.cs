@@ -214,6 +214,14 @@ public class UpdateExpenseRequest
     public string? Notes { get; set; }
 }
 
+public class VoidExpenseRequest
+{
+    /// <summary>Required. Recorded for audit; voided expenses stay stored but stop accepting payments.</summary>
+    [Required]
+    [MaxLength(1000)]
+    public string Reason { get; set; } = string.Empty;
+}
+
 public class ExpenseSearchQuery
 {
     public ulong? SupplierId { get; set; }

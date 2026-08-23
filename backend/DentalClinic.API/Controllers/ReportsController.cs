@@ -62,7 +62,10 @@ public class ReportsController : ControllerBase
             ))
             .ToListAsync();
 
-        return Ok(ApiResponse<IEnumerable<DailyFinancialSummaryDto>>.Ok(data));
+        var outstanding = await GetOutstandingPatientBalancesAsync(clinicId);
+
+        return Ok(ApiResponse<DailyFinancialReportDto>.Ok(
+            new DailyFinancialReportDto(outstanding, data)));
     }
 
     /// <summary>
@@ -80,6 +83,7 @@ public class ReportsController : ControllerBase
         var targetMonth = month ?? now.Month;
         
         var monthString = $"{targetYear}-{targetMonth:D2}-01";
+        var outstanding = await GetOutstandingPatientBalancesAsync(clinicId);
 
         var data = await _db.MonthlyFinancialSummaries
             .Where(m => m.ClinicId == clinicId && m.Month == monthString)
@@ -88,6 +92,7 @@ public class ReportsController : ControllerBase
                 m.Revenue ?? 0,
                 m.Expenses ?? 0,
                 m.NetProfit ?? 0,
+                outstanding,
                 m.Patients ?? 0,
                 m.Appointments ?? 0
             ))
@@ -100,6 +105,7 @@ public class ReportsController : ControllerBase
                 0,
                 0,
                 0,
+                outstanding,
                 0,
                 0
             )));
@@ -123,6 +129,7 @@ public class ReportsController : ControllerBase
         var targetMonth = month ?? now.Month;
         
         var monthString = $"{targetYear}-{targetMonth:D2}-01";
+        var outstanding = await GetOutstandingPatientBalancesAsync(clinicId);
 
         var data = await _db.MonthlyPerformanceComparisons
             .Where(m => m.ClinicId == clinicId && m.Month == monthString)
@@ -131,6 +138,7 @@ public class ReportsController : ControllerBase
                 m.Revenue ?? 0,
                 m.Expenses ?? 0,
                 m.NetProfit ?? 0,
+                outstanding,
                 m.Patients ?? 0,
                 m.Appointments ?? 0,
                 m.PreviousMonthRevenue,
@@ -153,6 +161,7 @@ public class ReportsController : ControllerBase
                 0,
                 0,
                 0,
+                outstanding,
                 0,
                 0,
                 null,
@@ -310,4 +319,9 @@ public class ReportsController : ControllerBase
 
         return Ok(ApiResponse<PagedResult<PatientDirectoryDto>>.Ok(pagedResult));
     }
+
+    private async Task<decimal> GetOutstandingPatientBalancesAsync(ulong clinicId) =>
+        await _db.PatientFinancialSummaries
+            .Where(s => s.ClinicId == clinicId)
+            .SumAsync(s => s.TotalRemaining ?? 0m);
 }

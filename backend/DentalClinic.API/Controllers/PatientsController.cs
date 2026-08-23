@@ -71,7 +71,7 @@ public class PatientsController(
         CancellationToken cancellationToken)
     {
         var clinicId = User.GetClinicId();
-        var patient = await patientService.CreatePatientAsync(clinicId, request, cancellationToken);
+        var patient = await patientService.CreatePatientAsync(clinicId, User.GetUserId(), request, cancellationToken);
         return CreatedAtAction(
             nameof(GetPatient),
             new { patientId = patient.PatientId },
@@ -86,7 +86,7 @@ public class PatientsController(
         CancellationToken cancellationToken)
     {
         var clinicId = User.GetClinicId();
-        var patient = await patientService.UpdatePatientAsync(clinicId, patientId, request, cancellationToken);
+        var patient = await patientService.UpdatePatientAsync(clinicId, User.GetUserId(), patientId, request, cancellationToken);
 
         if (patient is null)
         {
@@ -103,7 +103,7 @@ public class PatientsController(
         CancellationToken cancellationToken)
     {
         var clinicId = User.GetClinicId();
-        var success = await patientService.DeactivatePatientAsync(clinicId, patientId, cancellationToken);
+        var success = await patientService.DeactivatePatientAsync(clinicId, User.GetUserId(), patientId, cancellationToken);
 
         if (!success)
         {

@@ -59,7 +59,7 @@ public class AuthService(
         var user = await dbContext.Users
             .FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
 
-        if (user is null || !BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+        if (user is null || user.IsActive == false || !BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
         {
             return false;
         }

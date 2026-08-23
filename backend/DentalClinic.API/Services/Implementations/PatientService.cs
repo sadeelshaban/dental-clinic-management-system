@@ -1,4 +1,5 @@
 using DentalClinic.API.Common;
+using DentalClinic.API.Constants;
 using DentalClinic.API.Data;
 using DentalClinic.API.DTOs.Common;
 using DentalClinic.API.DTOs.Patients;
@@ -8,7 +9,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DentalClinic.API.Services.Implementations;
 
-public class PatientService(DentalClinicDbContext dbContext) : IPatientService
+public class PatientService(
+    DentalClinicDbContext dbContext,
+    IAuditService auditService) : IPatientService
 {
     public async Task<PagedResult<PatientListItemDto>> GetPatientsAsync(
         ulong clinicId,
@@ -75,12 +78,13 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
 
     public async Task<PatientDetailDto> CreatePatientAsync(
         ulong clinicId,
+        ulong actorUserId,
         CreatePatientRequest request,
         CancellationToken cancellationToken = default)
     {
         const int maxRetries = 3;
-        
-        for (int attempt = 0; attempt < maxRetries; attempt++)
+
+        for (var attempt = 0; attempt < maxRetries; attempt++)
         {
             try
             {
@@ -113,16 +117,24 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
                 dbContext.Patients.Add(patient);
                 await dbContext.SaveChangesAsync(cancellationToken);
 
+                auditService.Record(
+                    actorUserId,
+                    clinicId,
+                    AuditActions.Create,
+                    AuditEntities.Patient,
+                    entityId: patient.PatientId,
+                    newData: Snapshot(patient));
+
+                await dbContext.SaveChangesAsync(cancellationToken);
+
                 return MapToDetail(patient);
             }
             catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
             {
-                // Duplicate key error - retry with a new number
                 if (attempt == maxRetries - 1)
                 {
                     throw new BusinessRuleException("Unable to generate a unique patient number. Please try again.");
                 }
-                // Continue to next retry
             }
         }
 
@@ -131,6 +143,7 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
 
     public async Task<PatientDetailDto?> UpdatePatientAsync(
         ulong clinicId,
+        ulong actorUserId,
         ulong patientId,
         UpdatePatientRequest request,
         CancellationToken cancellationToken = default)
@@ -144,6 +157,8 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
         {
             return null;
         }
+
+        var oldSnapshot = Snapshot(patient);
 
         patient.FirstName = request.FirstName.Trim();
         patient.LastName = request.LastName.Trim();
@@ -169,11 +184,23 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
         patient.UpdatedAt = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
+        auditService.Record(
+            actorUserId,
+            clinicId,
+            AuditActions.Update,
+            AuditEntities.Patient,
+            entityId: patient.PatientId,
+            newData: Snapshot(patient),
+            oldData: oldSnapshot);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         return MapToDetail(patient);
     }
 
     public async Task<bool> DeactivatePatientAsync(
         ulong clinicId,
+        ulong actorUserId,
         ulong patientId,
         CancellationToken cancellationToken = default)
     {
@@ -187,8 +214,21 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
             return false;
         }
 
+        var oldSnapshot = Snapshot(patient);
+
         patient.IsActive = false;
         patient.UpdatedAt = DateTime.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        auditService.Record(
+            actorUserId,
+            clinicId,
+            AuditActions.Deactivate,
+            AuditEntities.Patient,
+            entityId: patient.PatientId,
+            newData: Snapshot(patient),
+            oldData: oldSnapshot);
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return true;
@@ -206,7 +246,7 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
             .FirstOrDefaultAsync(cancellationToken);
 
         string newNumber;
-        
+
         if (lastNumber is null || !lastNumber.StartsWith('P'))
         {
             newNumber = "P-00001";
@@ -227,14 +267,11 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
         return newNumber;
     }
 
-    private static bool IsDuplicateKeyException(DbUpdateException ex)
-    {
-        // Check if the exception is due to a duplicate key constraint violation
-        return ex.InnerException != null && 
-               (ex.InnerException.Message.Contains("Duplicate entry") ||
-                ex.InnerException.Message.Contains("uq_patient_number") ||
-                ex.InnerException.Message.Contains("PRIMARY"));
-    }
+    private static bool IsDuplicateKeyException(DbUpdateException ex) =>
+        ex.InnerException != null &&
+        (ex.InnerException.Message.Contains("Duplicate entry") ||
+         ex.InnerException.Message.Contains("uq_patient_number") ||
+         ex.InnerException.Message.Contains("PRIMARY"));
 
     private static string NormalizeGender(string? gender) =>
         gender?.Trim().ToUpperInvariant() switch
@@ -244,6 +281,19 @@ public class PatientService(DentalClinicDbContext dbContext) : IPatientService
             "OTHER" => "OTHER",
             _ => "UNKNOWN"
         };
+
+    private static object Snapshot(Patient patient) => new
+    {
+        patient.PatientId,
+        patient.PatientNumber,
+        patient.FirstName,
+        patient.LastName,
+        patient.Phone,
+        patient.Email,
+        patient.DateOfBirth,
+        patient.Gender,
+        patient.IsActive
+    };
 
     private static PatientListItemDto MapToListItem(Patient patient) =>
         new()

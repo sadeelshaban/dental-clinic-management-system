@@ -5,6 +5,7 @@ public record MonthlyFinancialSummaryDto(
     decimal Revenue,
     decimal Expenses,
     decimal NetProfit,
+    decimal OutstandingPatientBalances,
     long Patients,
     long Appointments
 );

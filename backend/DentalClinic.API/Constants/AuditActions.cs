@@ -24,6 +24,7 @@ public static class AuditActions
     // Expenses & suppliers (Phase 5)
     public const string ExpensePaymentCreated = "EXPENSE_PAYMENT_CREATED";
     public const string ExpensePaymentVoided = "EXPENSE_PAYMENT_VOIDED";
+    public const string ExpenseVoided = "EXPENSE_VOIDED";
     public const string Delete = "DELETE";
 }
 
@@ -34,6 +35,7 @@ public static class AuditEntities
 {
     public const string User = "user";
     public const string Doctor = "doctor";
+    public const string Patient = "patient";
     public const string Appointment = "appointment";
     public const string Visit = "visit";
     public const string TreatmentCategory = "treatment_category";
@@ -45,5 +47,5 @@ public static class AuditEntities
     public const string Supplier = "supplier";
     public const string Expense = "expense";
     public const string ExpensePayment = "expense_payment";
-public const string Attachment = "attachment";
+    public const string Attachment = "attachment";
 }

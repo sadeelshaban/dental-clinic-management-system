@@ -6,3 +6,8 @@ public record DailyFinancialSummaryDto(
     decimal Expenses,
     decimal NetProfit
 );
+
+public record DailyFinancialReportDto(
+    decimal OutstandingPatientBalances,
+    IReadOnlyList<DailyFinancialSummaryDto> Items
+);

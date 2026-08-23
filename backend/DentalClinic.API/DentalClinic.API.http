@@ -1,6 +1,18 @@
 @DentalClinic.API_HostAddress = http://localhost:5062
 
-GET {{DentalClinic.API_HostAddress}}/weatherforecast/
+### Health check (public)
+GET {{DentalClinic.API_HostAddress}}/api/health
 Accept: application/json
+
+###
+
+### Login (replace with valid credentials from your database / dev seed)
+# POST {{DentalClinic.API_HostAddress}}/api/auth/login
+# Content-Type: application/json
+#
+# {
+#   "email": "admin@demo.com",
+#   "password": "YOUR_PASSWORD"
+# }
 
 ###

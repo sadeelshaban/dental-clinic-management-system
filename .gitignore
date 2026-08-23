@@ -129,4 +129,5 @@ Properties/PublishProfiles/
 *.tmp
 *.temp
 
-# Test scripts (local development only, contain hardcoded credentials)
+# Runtime uploads
+uploads/

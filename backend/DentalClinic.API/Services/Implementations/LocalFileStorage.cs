@@ -61,4 +61,32 @@ public class LocalFileStorage : IFileStorage
             return Task.FromResult(false);
         }
     }
+
+    public Task<(Stream Stream, string ContentType)?> OpenReadAsync(string relativePath)
+    {
+        var fullPath = Path.Combine(_rootPath, relativePath);
+        if (!File.Exists(fullPath))
+        {
+            return Task.FromResult<(Stream Stream, string ContentType)?>(null);
+        }
+
+        var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var contentType = ResolveContentType(relativePath);
+        return Task.FromResult<(Stream Stream, string ContentType)?>((stream, contentType));
+    }
+
+    private static string ResolveContentType(string relativePath)
+    {
+        var extension = Path.GetExtension(relativePath).ToLowerInvariant();
+        return extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".bmp" => "image/bmp",
+            _ => "application/octet-stream"
+        };
+    }
 }

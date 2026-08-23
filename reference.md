@@ -431,18 +431,6 @@ npm run dev                    # Vite dev server on http://localhost:5173
 # Rebuild + restart dev API (the exe locks while running — stop old instance first)
 powershell -NoProfile -Command "Get-Process -Name DentalClinic.API -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep 1; Set-Location 'C:\Users\Sadeel\Desktop\Clinic\backend\DentalClinic.API'; dotnet build --nologo; Start-Process -FilePath 'dotnet' -ArgumentList 'run','--no-build' -WorkingDirectory 'C:\Users\Sadeel\Desktop\Clinic\backend\DentalClinic.API' -WindowStyle Hidden"
 
-# Phase 1 smoke tests (API must be running; MariaDB up; uses C:\xampp\mysql\bin\mysql.exe when present)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\phase1_smoke.ps1
-
-# Phase 2 smoke tests (appointments/scheduling; same prerequisites)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\phase2_smoke.ps1
-
-# Phase 3 smoke tests (clinical records; same prerequisites)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\phase3_smoke.ps1
-
-# Phase 4 smoke tests (billing/payments; same prerequisites)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\phase4_smoke.ps1
-
 # Inspect recent audit log entries
 & "C:\xampp\mysql\bin\mysql.exe" -u root dental_clinic_db -N -e "SELECT audit_id, action, entity_name, entity_id FROM audit_logs ORDER BY audit_id DESC LIMIT 20;"
 
@@ -662,23 +650,9 @@ Phase 9 focused on backend production readiness, including:
    - Added `IsDuplicateKeyException` helper method to detect MySQL duplicate key errors
    - No database schema changes required
 
-4. **Test Project**
-   - Created xUnit test project `DentalClinic.API.Tests`
-   - Added test dependencies: xUnit, Moq, Microsoft.EntityFrameworkCore.InMemory 9.0.11
-   - Test files:
-     - `Services/AuthServiceTests.cs` - Authentication tests (4 tests)
-     - `Services/PatientServiceTests.cs` - Patient number generation tests (3 tests)
-     - `Services/PaymentServiceTests.cs` - Payment validation tests (2 tests - zero/negative amount rejection)
-   - Note: Appointment overlap tests and payment row-locking tests require relational database (ExecuteSqlRawAsync) and are excluded from in-memory test suite
-
 ### 18.2 Verification
 
 - Backend builds successfully: `dotnet build backend/DentalClinic.API` - no errors
-- All tests pass: `dotnet test backend/DentalClinic.API.Tests` - 10/10 tests passed
-- Test coverage:
-  - Authentication: valid login, invalid password, inactive user, non-existent email
-  - Patient service: unique numbers, sequential numbering, multi-tenancy isolation
-  - Payment service: zero amount rejection, negative amount rejection
 
 ### 18.3 Documentation Updates
 

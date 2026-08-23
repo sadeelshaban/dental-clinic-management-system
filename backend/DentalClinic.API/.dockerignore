@@ -1,0 +1,16 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/uploads/
+**/*.user
+**/*.suo
+**/appsettings.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/appsettings.local.json
+**/.env
+**/.env.*
+**/TestResults/
+**/*.md
+!README.md

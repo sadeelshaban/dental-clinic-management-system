@@ -17,13 +17,17 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Wait until both services are healthy (`docker compose ps` — both **healthy**), then open these URLs in your browser:
+Wait until services are healthy (`docker compose ps`), then open:
 
-| What | URL | Status |
-|------|-----|--------|
-| **Swagger UI** (test all API endpoints) | [http://localhost:5062/](http://localhost:5062/) | Opens API docs at `/index.html` |
-| **OpenAPI JSON** | [http://localhost:5062/swagger/v1/swagger.json](http://localhost:5062/swagger/v1/swagger.json) | Raw spec |
-| **Health check** | [http://localhost:5062/api/health](http://localhost:5062/api/health) | JSON liveness + DB check |
+| What | URL |
+|------|-----|
+| **Clinic web app** | [http://localhost:5173/](http://localhost:5173/) |
+| **Swagger UI** | [http://localhost:5062/](http://localhost:5062/) |
+| **Health check** | [http://localhost:5062/api/health](http://localhost:5062/api/health) |
+
+If host port **3306** is already used (XAMPP MariaDB), set `MARIADB_PORT` in `.env` to another host port (for example `13306`). The API still talks to MariaDB on container port 3306.
+
+The `web` container serves the SPA and proxies `/api` to the API service.
 
 Default host port **5062** matches local `dotnet run` (see `API_PORT` in `.env`).
 
@@ -74,12 +78,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
-│   Browser   │────▶│  api :8080   │────▶│ mariadb :3306   │
-│ localhost   │     │  (ASP.NET)   │     │ MariaDB 10.4    │
-│ :5062       │     └──────────────┘     └─────────────────┘
-└─────────────┘            │
-                           ▼
-                    volume: api_uploads
+│   Browser   │────▶│  web :80     │────▶│ api :8080       │
+│ localhost   │     │  (nginx SPA) │     │ (ASP.NET)       │
+│ :5173       │     └──────────────┘     └────────┬────────┘
+└─────────────┘                                    │
+                                                   ▼
+                                            mariadb :3306
 ```
 
 ## Environment variables
@@ -91,6 +95,7 @@ Set in `.env` (see `.env.example`):
 | `MARIADB_ROOT_PASSWORD` | MariaDB root password (required) |
 | `MARIADB_PORT` | Host port for MariaDB (default 3306) |
 | `API_PORT` | Host port for API (default 5062) |
+| `WEB_PORT` | Host port for the SPA (default 5173) |
 | `JWT_SECRET` | JWT signing key, ≥ 32 chars (required) |
 
 The API container also receives standard ASP.NET configuration keys (`ConnectionStrings__DentalClinicDb`, `Jwt__*`, `Uploads__Path`) via `docker-compose.yml`.
@@ -99,7 +104,8 @@ The API container also receives standard ASP.NET configuration keys (`Connection
 
 | File | Purpose |
 |------|---------|
-| `docker-compose.yml` | Dev stack: MariaDB + API |
+| `docker-compose.yml` | Dev stack: MariaDB + API + web |
+| `frontend/Dockerfile` | Multi-stage Node build + nginx |
 | `docker-compose.prod.yml` | Production overrides |
 | `backend/DentalClinic.API/Dockerfile` | Multi-stage .NET 10 build |
 | `backend/DentalClinic.API/.dockerignore` | Exclude bin/obj and local secrets from image |

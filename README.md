@@ -1,8 +1,8 @@
 # Dental Clinic Management System
 
-Multi-tenant dental clinic management API (ASP.NET Core / .NET 10) backed by MariaDB.
+Multi-tenant dental clinic management system: ASP.NET Core API, MariaDB, and a React SPA.
 
-**Repository scope:** This repository contains the **backend API only** (Phases 0–7). A React frontend is planned separately and is **not included** here (`frontend/` is empty).
+**Repository scope:** Backend Phases 0–7 plus Phase 8 frontend (`frontend/`).
 
 Full product requirements and API contracts live in [`reference.md`](reference.md).
 
@@ -17,11 +17,12 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-When both containers are **healthy** (`docker compose ps`):
+When containers are **healthy** (`docker compose ps`):
 
 | Link | Purpose |
 |------|---------|
-| [http://localhost:5062/](http://localhost:5062/) | **Swagger UI** — explore and test every endpoint |
+| [http://localhost:5173/](http://localhost:5173/) | **Clinic web app** |
+| [http://localhost:5062/](http://localhost:5062/) | **Swagger UI** |
 | [http://localhost:5062/api/health](http://localhost:5062/api/health) | Health check (JSON) |
 
 **Swagger login:** `POST /api/auth/login` with `admin@demo.com` / `Admin@123`, then **Authorize** with `Bearer <token>`.
@@ -132,7 +133,18 @@ dotnet build backend/DentalClinic.API/DentalClinic.API.csproj
 
 ## Frontend
 
-Not started. Planned stack: React + Vite + TypeScript consuming this REST API (Phase 8 in `reference.md`).
+React + Vite + TypeScript in `frontend/`.
+
+```bash
+cd frontend
+copy .env.example .env
+npm install
+npm run dev
+```
+
+Dev server: **http://localhost:5173**. Set `VITE_API_BASE_URL` (default `http://localhost:5062`).
+
+Attachments download only via authenticated `GET /api/attachments/{id}/download`.
 
 ## License
 

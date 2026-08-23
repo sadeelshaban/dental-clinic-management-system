@@ -43,6 +43,21 @@ services:
     volumes:
       - api_uploads:/app/uploads
 
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+    container_name: dental-clinic-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-5173}:80"
+
+
 volumes:
   mariadb_data:
   api_uploads:

@@ -20,8 +20,9 @@
 - **Current project status (2026-08-23):**
   - Requirements: **FORMALIZED** (see §2). Phase 0 complete.
   - Database: **complete** (schema + views + demo seed in `database/dental_clinic_db.sql`).
-  - Backend: **Phases 1–7 complete** (auth, users/doctors, patients, appointments, clinical records, billing, expenses/suppliers, attachments, reports/dashboard). Phase 8 frontend **not started**. Phase 9 hardening **partial** (login rate limiting implemented; automated tests not yet added).
-  - Frontend: **not started** (empty `frontend/` directory; intentionally out of repo scope for now).
+  - Backend: **Phases 1–7 complete**; Phase 9 hardening **partial** (login rate limiting implemented; automated tests not yet added).
+  - Frontend: **Phase 8 complete** — React + Vite + TypeScript app in `frontend/`, role-aware SPA consuming the live REST API (no mock production data).
+  - Docker: MariaDB + API + nginx SPA (`docker-compose.yml`). Host MariaDB port is configurable (`MARIADB_PORT`) to avoid clashing with local XAMPP on 3306.
   - `reference.md`: living specification + change log (this file).
 
 ---
@@ -106,9 +107,9 @@
 - Quick Actions eventually include: Add Patient, Add Treatment, Add Payment, Add Appointment.
 - Fast patient profile access is the requirement; specific interaction mechanics (e.g., double-click) are implementation details, NOT specs.
 
-### 2.16 Frontend — CONFIRMED (stack) / FUTURE (Arabic)
+### 2.16 Frontend — CONFIRMED (stack + Arabic text toggle)
 - React + Vite + TypeScript consuming the existing REST API.
-- UI in English initially; architecture remains i18n-ready so Arabic/RTL can be added later (FUTURE/PLANNED, not required for MVP).
+- UI strings are bilingual (English / Arabic). Language toggle changes text only; layout, field order, and LTR chrome stay the same (no RTL flip unless requested later).
 
 ### 2.17 Online booking — FUTURE
 - NOT part of the current MVP. Internal appointment management is required.
@@ -130,7 +131,7 @@
 
 ### Non-CONFIRMED summary
 - **PENDING:** dental chart standard (FDI / Universal / Palmer — clinic must confirm); DOCTOR financial permission boundary details.
-- **FUTURE / OPTIONAL:** online booking, Arabic/RTL UI, PDF invoices/receipts, report exports (PDF/Excel/CSV), SMS/email reminders.
+- **FUTURE / OPTIONAL:** online booking, full RTL layout, PDF invoices/receipts, report exports (PDF/Excel/CSV), SMS/email reminders.
 - **REJECTED:** EF Core migrations; implementing online booking / dental chart / PDF invoicing within the current MVP without explicit approval.
 
 ---
@@ -185,7 +186,7 @@ Rules below are enforced by the schema or implied by views; app code must respec
 | Auth | JWT Bearer | Microsoft.AspNetCore.Authentication.JwtBearer 10.0.11; 480-minute expiry |
 | Password hashing | BCrypt.Net-Next | 4.0.3 |
 | API docs | Swashbuckle.AspNetCore | 7.2.0; Swagger UI at site root in Development |
-| Frontend | React + Vite + TypeScript | **Not started**; dev origin `http://localhost:5173` |
+| Frontend | React 19 + Vite 8 + TypeScript | `frontend/`; Docker `web` on port 5173 |
 | Containerization | Docker + Docker Compose | MariaDB 10.4 + API multi-stage image; see `docker-compose.yml`, `docker/README.md` |
 | Runtime | Windows 11, XAMPP MariaDB, .NET 10 SDK; or Docker | |
 
@@ -228,7 +229,7 @@ Clinic/
 │       ├── Properties/           # launchSettings.json (http://localhost:5062)
 │       ├── appsettings.json      # connection string + JWT config (dev values)
 │       └── Program.cs
-└── frontend/                     # EMPTY — React + Vite + TS to be scaffolded here
+└── frontend/                     # React + Vite + TypeScript SPA (Phase 8)
 ```
 
 ### Key abstractions / patterns
@@ -426,10 +427,11 @@ dotnet run --launch-profile https   # https://localhost:7105 + http://localhost:
 # Import schema + demo data (phpMyAdmin import, or CLI):
 mysql -u root < database\dental_clinic_db.sql
 
-# Frontend (once scaffolded — planned)
+# Frontend (once scaffolded)
 cd frontend
 npm install
 npm run dev                    # Vite dev server on http://localhost:5173
+npm run build
 ```
 
 # Rebuild + restart dev API (the exe locks while running — stop old instance first)
@@ -501,7 +503,9 @@ Git: repository initialized by user; no branch/commit conventions recorded yet.
 | Reusable/configurable clinic system, not hardcoded | CONFIRMED | Requirements 2026-08-22 |
 | Revenue = cash received (payments), not treatment value created | CONFIRMED | Critical financial rule |
 | No clinic-switching UI in MVP; one current clinic per user | CONFIRMED | Requirements 2026-08-22 |
-| English-first UI, i18n-ready for Arabic/RTL later | CONFIRMED | Arabic/RTL = FUTURE |
+| English-first UI, i18n-ready for Arabic/RTL later | SUPERSEDED 2026-08-23 | Arabic/RTL was FUTURE; see next row |
+| Arabic text toggle without RTL layout flip | CONFIRMED | User request 2026-08-23: convert strings only; keep field order/LTR chrome |
+| Treatment catalog default prices follow Jenin Dental Association 2015 schedule | CONFIRMED | Seed + live catalog; ranges use starting fee; historical patient treatments unchanged |
 | Report exports (PDF/Excel/CSV) deferred | DEFERRED | Requires explicit approval to activate |
 | Audit logging mandatory for key mutations; secrets never logged | CONFIRMED | Scope defined in §2.19 |
 | Schema changes require stop-and-report with exact SQL before applying | CONFIRMED | Database protection protocol |
@@ -527,7 +531,7 @@ Git: repository initialized by user; no branch/commit conventions recorded yet.
 | 2026-08-23 | 6 — Attachments | Implemented file upload/download system: IFileStorage interface + LocalFileStorage implementation (local filesystem storage under /uploads), AttachmentService (upload with patient/treatment ownership validation, GUID-based filenames, clinic-scoped folders), AttachmentsController (upload endpoint with 10 MB size limit, image/* and application/pdf MIME type validation, list by patient/treatment, delete for ADMIN or uploader), static file serving via Program.cs, DTOs (AttachmentDto), DI registration (IFileStorage as singleton, IAttachmentService scoped), audit logging (CREATE/DELETE actions on attachment entity). Fixed smoke script to use Add-Type for .NET HttpClient compatibility with PowerShell 5.1. | Services/Interfaces/IFileStorage.cs, Services/Implementations/LocalFileStorage.cs, Services/Interfaces/IAttachmentService.cs, Services/Implementations/AttachmentService.cs, Controllers/AttachmentsController.cs, DTOs/Common/AttachmentDtos.cs, Extensions/ServiceCollectionExtensions.cs, Program.cs, Constants/AuditActions.cs, scripts/phase6_smoke.ps1 | Phase 6 scope per roadmap | COMPLETE — build clean (0 errors, 0 warnings); smoke PASS=13/FAIL=0 (health, login, patient lookup, PDF upload, list, download, delete, verify deletion, audit CREATE/DELETE, reject >10MB, reject disallowed MIME, reject no parent, clinic association); audit rows verified in MariaDB (audit_id 178 DELETE, 177 CREATE for attachment_id=6, clinic_id=1, user_id=1); database schema UNCHANGED |
 | 2026-08-23 | 7 — Reports & Dashboard | Implemented Reports & Dashboard backend: ReportsController with 5 read-only endpoints (daily financial summary, monthly financial summary, monthly performance comparison, patient directory, outstanding balances), 4 DTOs (DailyFinancialSummaryDto, MonthlyFinancialSummaryDto, MonthlyPerformanceComparisonDto, PatientDirectoryDto). Authorization: financial endpoints = ADMIN only; patient directory/outstanding balances = ClinicalStaff (ADMIN, DOCTOR, SECRETARY). Multi-tenancy: all queries filtered by clinic_id from JWT. Validation: date range validation (from ≤ to), pagination (max pageSize 100), patient search (name/number/phone/email). Uses existing database views (daily_financial_summary, monthly_financial_summary, monthly_performance_comparison, patient_directory). No audit logging required (read-only). Fixed appsettings.json password for MariaDB connection. | Controllers/ReportsController.cs, DTOs/Reports/DailyFinancialSummaryDto.cs, DTOs/Reports/MonthlyFinancialSummaryDto.cs, DTOs/Reports/MonthlyPerformanceComparisonDto.cs, DTOs/Reports/PatientDirectoryDto.cs, appsettings.json | Phase 7 scope per roadmap | COMPLETE — build clean (0 errors, 0 warnings); all 5 endpoints tested via API calls (daily returns financial data, monthly returns summary, comparison returns current vs previous month, patient directory returns paged results, outstanding balances filters by remaining > 0); authorization tested (401 without token, 200 with admin token); date range validation tested (invalid range returns 400); pagination tested (pageSize=2 returns correct totalPages); data verified against database views (patient_directory view matches API response); database schema UNCHANGED |
 | 2026-08-23 | Post-fix hardening + docs | Security/correctness fixes: JWT attachment download (removed public static `/uploads/`), patient audit, reload after payment/expense row lock, DOCTOR statement totals, report DTO outstanding balances, expense-level void, inactive password block, missing-claim → 401, void-reason and magic-byte validation. Documentation synchronized. | See §13; README.md, backend/DentalClinic.API/README.md, DentalClinic.API.http, reference.md + backend source files listed in commit | Audit remediation | COMPLETE — build clean; database schema UNCHANGED |
-| 2026-08-23 | Docker | Added Docker Compose stack: multi-stage `Dockerfile` for API (net10.0), MariaDB 10.4 with SQL init from `database/dental_clinic_db.sql`, `.env.example`, dev/prod compose files, uploads volume, health checks, optional HTTPS redirect disable for HTTP containers. | `backend/DentalClinic.API/Dockerfile`, `backend/DentalClinic.API/.dockerignore`, `docker-compose.yml`, `docker-compose.prod.yml`, `.env.example`, `docker/README.md`, `Program.cs`, `README.md`, `reference.md` | Containerized dev/prod deployment | COMPLETE — compose validates; image builds |
+| 2026-08-23 | 8 — Clinic branding | Branded SPA for Elmasry Dental Clinic (Dr. Mohammed Elmasry, Jenin): logo, clinic name/phone/address in chrome, demo-admin display name mapped to the doctor, patient form grid cleaned. Backend unchanged. | `frontend/src/clinic.ts`, `frontend/public/elmasry-logo.png`, `frontend/src/pages/PatientsPage.tsx`, layout/login CSS, `reference.md` | User request | COMPLETE |
 
 ---
 
@@ -578,7 +582,7 @@ Git: repository initialized by user; no branch/commit conventions recorded yet.
 - [x] **Phase 5:** Expenses & suppliers — COMPLETE (2026-08-23). Categories, suppliers, expenses, expense payments (+ void), expense-level void (`POST /api/expenses/{id}/void`), supplier statements. See §7 API, §12 Change Log.
 - [x] **Phase 6:** Attachments — COMPLETE (2026-08-23). Upload, JWT-protected download (`GET /api/attachments/{id}/download`), list, delete, magic-byte validation, audit. Public static `/uploads/` serving **removed** (2026-08-23 hardening).
 - [x] **Phase 7:** Reports & Dashboard — COMPLETE (2026-08-23). Five read-only report endpoints; dashboard DTOs include clinic-wide `outstandingPatientBalances` on daily/monthly/comparison responses. See §7 API.
-- [ ] **Phase 8:** Frontend (React + Vite + TS) — **not started**; separate from current repo scope.
+- [x] **Phase 8:** Frontend (React + Vite + TS) — **COMPLETE** (2026-08-23). Role-aware SPA in `frontend/` covering Phases 0–7 API surface. JWT in sessionStorage + memory; 401 clears session. Attachments use authenticated download only. Docker `web` service (nginx) proxies `/api` to the API container.
 - [ ] **Phase 9:** Hardening — **partial**. Login rate limiting implemented; automated tests, production secrets workflow, and full doc sync ongoing.
 
 ### SHOULD HAVE
@@ -591,7 +595,7 @@ Git: repository initialized by user; no branch/commit conventions recorded yet.
 ### FUTURE
 - [ ] Online booking (`allow_online_booking`)
 - [ ] Dental chart
-- [ ] Arabic / RTL UI
+- [ ] Arabic RTL layout (text toggle is implemented; direction stays LTR)
 - [ ] PDF invoices/receipts
 - [ ] Notifications (SMS/email reminders)
 
@@ -599,18 +603,43 @@ Git: repository initialized by user; no branch/commit conventions recorded yet.
 
 ## 16. Frontend
 
-**Status: not started.** `frontend/` is empty.
+**Status: Phase 8 COMPLETE (2026-08-23).** App lives in `frontend/` (React 19 + Vite 8 + TypeScript). EN/AR string toggle via `I18nProvider` (`frontend/src/i18n`); layout remains LTR. Patient create/edit: email and national ID are optional. Treatment catalog seed follows the Jenin Dental Association 2015 fee schedule (starting fee for ranges).
 
-Planned (per confirmed decisions):
-- **Stack:** React + Vite + TypeScript; dev server `http://localhost:5173` (already allowed by backend CORS).
-- **API integration:** central HTTP client attaching `Authorization: Bearer <token>`; unwrap `ApiResponse<T>` (`{success, message, data}`); handle 401 → redirect to login.
-- **Auth:** login page; token + user (id, clinic, role, name) persisted; route guards per role.
-- **Navigation:** role-based (ADMIN sees users/expenses/reports; DOCTOR sees schedule/visits/patients; SECRETARY sees patients/appointments/billing).
-- **Language:** English initially; architecture must remain i18n-ready so Arabic/RTL can be added later (FUTURE — not MVP).
-- **UX principles (confirmed):** minimal typing/clicks, Quick Actions (Add Patient, Add Treatment, Add Payment, Add Appointment), fast patient search and fast patient profile access, clear financial information, simple workflows, no unnecessary forms or confirmation steps.
-- **MVP scope:** single current clinic per user — no clinic-switching UI.
-- **Modules (mirror backend phases):** Dashboard, Patients, Appointments (calendar), Visits/clinical records, Treatments catalog, Billing & payments, Expenses & suppliers, Reports, Settings, Users.
-- **To document as work begins:** pages, components, routes, UI library/design system, responsive behavior, i18n approach.
+### Run
+```bash
+cd frontend
+copy .env.example .env   # VITE_API_BASE_URL=http://localhost:5062
+npm install
+npm run dev              # http://localhost:5173
+npm run build
+```
+Docker: `docker compose up -d --build` also starts `web` on `WEB_PORT` (default 5173). The nginx image uses an empty API base URL and proxies `/api` to the `api` service (no backend CORS change required).
+
+### Architecture
+- `src/api/client.ts` — fetch wrapper, `ApiResponse` unwrap (camelCase and PascalCase), 401 handler, sessionStorage JWT (never shown in UI).
+- `src/api/services.ts` — typed services matching controller routes (`/api/treatmentcategories`, `/api/patienttreatments`, etc.).
+- `src/types/api.ts` — DTO interfaces mapped 1:1 from backend (camelCase JSON).
+- `src/i18n/` — locale provider, dictionaries, language toggle (text only; `html` stays LTR).
+- `src/components/layout` — AppShell, Sidebar, Header (global patient search).
+- `src/components/ui` — buttons, dialogs, tables, toasts, skeletons, empty/error states.
+- No mock/fake production data paths. No public `/uploads/` URLs.
+
+### Routes
+`/`, `/patients`, `/patients/:id`, `/appointments`, `/visits`, `/treatments`, `/payments`, `/expenses`, `/expenses/:id`, `/suppliers`, `/suppliers/:id`, `/attachments`, `/reports`, `/users` (ADMIN), `/doctors`, `/account`.
+
+### Role-aware UI (backend remains the security layer)
+- All clinical staff: patients, appointments, visits (read), catalog (read), payments (read), expenses (read), suppliers (read), attachments (download/list), reports directory/outstanding.
+- ADMIN + SECRETARY: patient write/deactivate, payments create/void, expense write/void, attachment upload/delete.
+- ADMIN + DOCTOR: visit and patient-treatment writes. DOCTOR doctorId is ignored by the API.
+- ADMIN only: users, doctor profile updates, catalog writes, supplier create/update, payment methods, financial report endpoints (`/daily`, `/monthly`, `/comparison`). SECRETARY/DOCTOR dashboard omits those financial cards.
+
+### Backend limitations reflected in the UI
+- No notifications API — header has no fake notification inbox.
+- No clinic directory/name endpoint — clinic identity is configured in `frontend/src/clinic.ts` (Elmasry Dental Clinic / Dr. Mohammed Elmasry) for this deployment; still no clinic switcher.
+- No working-hours or slot-settings GET — appointment times are entered by staff; overlap/hours/slot rules stay server-side.
+- Expense list/detail DTOs expose `totalAmount` + derived `status`, not remaining; remaining is shown on supplier statements.
+- No appointment↔visit FK — visits and appointments stay separate screens.
+- Dental chart, full RTL layout, PDF invoices, report export: still FUTURE / PENDING per §2. Arabic *text* toggle is implemented.
 
 ---
 
@@ -618,7 +647,7 @@ Planned (per confirmed decisions):
 
 - Online patient booking portal (setting already exists, default off).
 - Dental chart (per-tooth treatment mapping) — pending clinic confirmation.
-- Arabic/RTL localization.
+- Full RTL layout (Arabic strings already toggle without flipping chrome).
 - Printable PDF invoices and payment receipts.
 - SMS/WhatsApp appointment reminders.
 - Automated database backups strategy (XAMPP environment).
@@ -714,4 +743,4 @@ Enhanced Swagger/OpenAPI configuration for manual API testing:
 
 ---
 
-*Maintained by the development team + AI agents. Last updated: 2026-08-23 (Phase 9 + Swagger configuration).*
+*Maintained by the development team + AI agents. Last updated: 2026-08-23 (Arabic text toggle, patient form, Jenin catalog).*

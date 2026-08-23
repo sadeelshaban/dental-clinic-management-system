@@ -48,6 +48,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IExpenseCategoryService, ExpenseCategoryService>();
 
+        // File storage and attachments
+        services.AddSingleton<IFileStorage, DentalClinic.API.Services.Implementations.LocalFileStorage>();
+        services.AddScoped<IAttachmentService, DentalClinic.API.Services.Implementations.AttachmentService>();
+
         return services;
     }
 

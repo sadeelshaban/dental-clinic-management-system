@@ -5,6 +5,7 @@ public record MonthlyPerformanceComparisonDto(
     decimal Revenue,
     decimal Expenses,
     decimal NetProfit,
+    decimal OutstandingPatientBalances,
     long Patients,
     long Appointments,
     decimal? PreviousMonthRevenue,

@@ -62,4 +62,22 @@ public class ExpensesController(IExpenseService expenseService) : ControllerBase
         }
                 return Ok(ApiResponse<ExpenseDetailDto>.Ok(expense, "Expense updated successfully."));
     }
+
+    [Authorize(Roles = AppRoles.AdminOrSecretary)]
+    [HttpPost("{expenseId:long}/void")]
+    public async Task<ActionResult<ApiResponse<ExpenseDetailDto>>> VoidExpense(
+        ulong expenseId,
+        [FromBody] VoidExpenseRequest request,
+        CancellationToken cancellationToken)
+    {
+        var expense = await expenseService.VoidExpenseAsync(
+            User.GetClinicId(), User.GetUserId(), expenseId, request, cancellationToken);
+
+        if (expense is null)
+        {
+            return NotFound(ApiResponse<ExpenseDetailDto>.Fail("Expense not found."));
+        }
+
+        return Ok(ApiResponse<ExpenseDetailDto>.Ok(expense, "Expense voided successfully."));
+    }
 }

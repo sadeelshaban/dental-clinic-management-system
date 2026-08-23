@@ -40,6 +40,15 @@ public interface IExpenseService
         UpdateExpenseRequest request,
         CancellationToken cancellationToken = default);
 
+    /// <returns>The voided expense, or null when it does not exist in the clinic.</returns>
+    /// <exception cref="Common.BusinessRuleException">Already voided or has recorded payments.</exception>
+    Task<ExpenseDetailDto?> VoidExpenseAsync(
+        ulong clinicId,
+        ulong actorUserId,
+        ulong expenseId,
+        VoidExpenseRequest request,
+        CancellationToken cancellationToken = default);
+
     // Expense payments
     /// <exception cref="Common.BusinessRuleException">Validation, overpayment, or concurrency failures.</exception>
     Task<ExpensePaymentDetailDto> CreateExpensePaymentAsync(

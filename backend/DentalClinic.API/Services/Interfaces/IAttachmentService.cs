@@ -12,4 +12,10 @@ public interface IAttachmentService
     Task<IEnumerable<AttachmentDto>> ListByPatientAsync(ulong patientId, ClaimsPrincipal user);
     Task<IEnumerable<AttachmentDto>> ListByTreatmentAsync(ulong patientTreatmentId, ClaimsPrincipal user);
     Task<bool> DeleteAsync(ulong attachmentId, ClaimsPrincipal user);
+
+    /// <summary>
+    /// Opens an attachment for download after clinic-scoped authorization checks.
+    /// Caller must dispose the returned result.
+    /// </summary>
+    Task<AttachmentDownloadResult?> OpenDownloadAsync(ulong attachmentId, ClaimsPrincipal user);
 }

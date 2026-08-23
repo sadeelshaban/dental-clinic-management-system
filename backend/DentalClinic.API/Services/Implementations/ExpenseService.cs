@@ -183,6 +183,11 @@ public class ExpenseService(
             return null;
         }
 
+        if (expense.Status == "VOIDED")
+        {
+            throw new BusinessRuleException("Cannot update a voided expense.");
+        }
+
         var oldSnapshot = Snapshot(expense);
 
         if (request.SupplierId.HasValue && request.SupplierId.Value != expense.SupplierId)
@@ -259,6 +264,61 @@ public class ExpenseService(
         return (await GetExpenseByIdAsync(clinicId, expenseId, cancellationToken))!;
     }
 
+    public async Task<ExpenseDetailDto?> VoidExpenseAsync(
+        ulong clinicId,
+        ulong actorUserId,
+        ulong expenseId,
+        VoidExpenseRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var expense = await dbContext.Expenses
+            .FirstOrDefaultAsync(e => e.ClinicId == clinicId && e.ExpenseId == expenseId, cancellationToken);
+
+        if (expense is null)
+        {
+            return null;
+        }
+
+        if (expense.Status == "VOIDED")
+        {
+            throw new BusinessRuleException("This expense has already been voided.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new BusinessRuleException("A void reason is required.");
+        }
+
+        var reason = request.Reason.Trim();
+        var validPaid = await GetValidPaidAmountAsync(clinicId, expense.ExpenseId, cancellationToken);
+        if (validPaid > 0)
+        {
+            throw new BusinessRuleException(
+                "Cannot void an expense that has recorded payments. Void the payments first.");
+        }
+
+        var oldSnapshot = Snapshot(expense);
+        var now = DateTime.UtcNow;
+
+        expense.Status = "VOIDED";
+        expense.UpdatedAt = now;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        auditService.Record(
+            actorUserId,
+            clinicId,
+            AuditActions.ExpenseVoided,
+            AuditEntities.Expense,
+            entityId: expense.ExpenseId,
+            newData: new { expense.Status, Reason = reason },
+            oldData: oldSnapshot);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await GetExpenseByIdAsync(clinicId, expenseId, cancellationToken);
+    }
+
     // ------------------------------------------------------------ payments
 
     public async Task<ExpensePaymentDetailDto> CreateExpensePaymentAsync(
@@ -310,6 +370,16 @@ public class ExpenseService(
         try
         {
             await LockExpenseRowAsync(expense.ExpenseId, cancellationToken);
+
+            expense = await dbContext.Expenses
+                .FirstAsync(
+                    e => e.ClinicId == clinicId && e.ExpenseId == expense.ExpenseId,
+                    cancellationToken);
+
+            if (expense.Status == "VOIDED")
+            {
+                throw new BusinessRuleException("Cannot record payments for a voided expense.");
+            }
 
             var total = expense.TotalAmount;
             var paid = await GetValidPaidAmountAsync(clinicId, expense.ExpenseId, cancellationToken);
@@ -400,6 +470,11 @@ public class ExpenseService(
         if (payment.IsVoided)
         {
             throw new BusinessRuleException("This expense payment has already been voided.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new BusinessRuleException("A void reason is required.");
         }
 
         var reason = request.Reason.Trim();
@@ -672,8 +747,9 @@ public class ExpenseService(
             StatusUnpaid => StatusUnpaid,
             StatusPartiallyPaid => StatusPartiallyPaid,
             StatusPaid => StatusPaid,
+            "VOIDED" => "VOIDED",
             _ => throw new BusinessRuleException(
-                $"Invalid status '{status}'. Allowed statuses: {StatusUnpaid}, {StatusPartiallyPaid}, {StatusPaid}.")
+                $"Invalid status '{status}'. Allowed statuses: {StatusUnpaid}, {StatusPartiallyPaid}, {StatusPaid}, VOIDED.")
         };
     }
 

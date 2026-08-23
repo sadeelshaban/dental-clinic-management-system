@@ -19,4 +19,9 @@ public interface IFileStorage
     /// Ensures storage root exists (e.g., creates folder).
     /// </summary>
     void EnsureStorageExists();
+
+    /// <summary>
+    /// Opens a stored file for reading. Caller must dispose the returned stream.
+    /// </summary>
+    Task<(Stream Stream, string ContentType)?> OpenReadAsync(string relativePath);
 }

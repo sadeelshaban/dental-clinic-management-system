@@ -30,6 +30,20 @@ public class ExceptionHandlingMiddleware(
 
             await context.Response.WriteAsync(JsonSerializer.Serialize(response));
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning("Unauthorized access for {Method} {Path}: {Message}",
+                context.Request.Method,
+                context.Request.Path,
+                ex.Message);
+
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+
+            var response = ApiResponse<object>.Fail("Unauthorized.");
+
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception for {Method} {Path}",

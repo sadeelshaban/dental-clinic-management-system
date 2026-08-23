@@ -68,6 +68,16 @@ public class PaymentService(
         {
             await LockTreatmentRowAsync(treatment.PatientTreatmentId, cancellationToken);
 
+            treatment = await dbContext.PatientTreatments
+                .FirstAsync(
+                    pt => pt.ClinicId == clinicId && pt.PatientTreatmentId == treatment.PatientTreatmentId,
+                    cancellationToken);
+
+            if (treatment.Status == "VOIDED")
+            {
+                throw new BusinessRuleException("Cannot record payments for a voided treatment.");
+            }
+
             var total = treatment.FinalAmount ?? 0m;
             var paid = await GetValidPaidAmountAsync(clinicId, treatment.PatientTreatmentId, cancellationToken);
             var remaining = total - paid;
@@ -158,6 +168,11 @@ public class PaymentService(
         if (payment.IsVoided)
         {
             throw new BusinessRuleException("This payment has already been voided.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new BusinessRuleException("A void reason is required.");
         }
 
         var reason = request.Reason.Trim();
@@ -350,6 +365,24 @@ public class PaymentService(
             })
             .FirstOrDefaultAsync(cancellationToken);
 
+        if (summary is null)
+        {
+            var patient = await dbContext.Patients
+                .AsNoTracking()
+                .Where(p => p.ClinicId == clinicId && p.PatientId == patientId)
+                .Select(p => new { p.FirstName, p.LastName, p.PatientNumber })
+                .FirstAsync(cancellationToken);
+
+            summary = new
+            {
+                FullName = $"{patient.FirstName} {patient.LastName}",
+                patient.PatientNumber,
+                TotalTreatments = 0m,
+                TotalPaid = 0m,
+                TotalRemaining = 0m
+            };
+        }
+
         // Lines from the existing patient_treatment_financials view (authoritative),
         // joined for doctor names. DOCTOR actors see only their own lines.
         var linesQuery =
@@ -378,6 +411,23 @@ public class PaymentService(
         var lines = await linesQuery
             .OrderByDescending(l => l.TreatmentDate)
             .ToListAsync(cancellationToken);
+
+        decimal totalTreatments;
+        decimal totalPaid;
+        decimal totalRemaining;
+
+        if (actorRole == AppRoles.Doctor)
+        {
+            totalTreatments = lines.Sum(l => l.TreatmentTotal);
+            totalPaid = lines.Sum(l => l.Paid);
+            totalRemaining = lines.Sum(l => l.Remaining);
+        }
+        else
+        {
+            totalTreatments = summary.TotalTreatments;
+            totalPaid = summary.TotalPaid;
+            totalRemaining = summary.TotalRemaining;
+        }
 
         var paymentsQuery = dbContext.PatientPayments
             .AsNoTracking()
@@ -411,11 +461,11 @@ public class PaymentService(
         return new PatientFinancialStatementDto
         {
             PatientId = patientId,
-            PatientName = summary?.FullName ?? string.Empty,
-            PatientNumber = summary?.PatientNumber ?? string.Empty,
-            TotalTreatments = summary?.TotalTreatments ?? 0m,
-            TotalPaid = summary?.TotalPaid ?? 0m,
-            TotalRemaining = summary?.TotalRemaining ?? 0m,
+            PatientName = summary.FullName ?? string.Empty,
+            PatientNumber = summary.PatientNumber ?? string.Empty,
+            TotalTreatments = totalTreatments,
+            TotalPaid = totalPaid,
+            TotalRemaining = totalRemaining,
             Lines = lines,
             Payments = payments
         };

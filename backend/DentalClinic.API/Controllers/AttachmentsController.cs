@@ -1,8 +1,6 @@
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using DentalClinic.API.Constants;
 using DentalClinic.API.DTOs.Attachments;
+using DentalClinic.API.DTOs.Common;
 using DentalClinic.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -24,23 +22,26 @@ public class AttachmentsController : ControllerBase
     [HttpPost("upload")]
     [Authorize(Roles = AppRoles.AdminOrSecretary)]
     [ApiExplorerSettings(IgnoreApi = true)]
-    public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromForm] ulong? patientId, [FromForm] ulong? patientTreatmentId)
+    public async Task<IActionResult> Upload(
+        [FromForm] IFormFile file,
+        [FromForm] ulong? patientId,
+        [FromForm] ulong? patientTreatmentId)
     {
-        // validate file
-        if (file == null) return BadRequest(DentalClinic.API.DTOs.Common.ApiResponse<object>.Fail("File is required."));
+        var dto = await _attachmentService.UploadAsync(file, patientId, patientTreatmentId, User);
+        return Ok(ApiResponse<AttachmentDto>.Ok(dto));
+    }
 
-        // size and mime checks
-        var maxBytes = 10 * 1024 * 1024; // 10 MB
-                if (file.Length > maxBytes) return BadRequest(DentalClinic.API.DTOs.Common.ApiResponse<object>.Fail("File exceeds the maximum allowed size (10 MB)."));
-
-        var allowedTypes = new[] { "application/pdf" };
-        if (file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == false && !allowedTypes.Contains(file.ContentType))
+    [HttpGet("{id:long}/download")]
+    [Authorize(Roles = AppRoles.ClinicalStaff)]
+    public async Task<IActionResult> Download(ulong id)
+    {
+        var result = await _attachmentService.OpenDownloadAsync(id, User);
+        if (result is null)
         {
-                    return BadRequest(DentalClinic.API.DTOs.Common.ApiResponse<object>.Fail("File type not allowed."));
+            return NotFound(ApiResponse<object>.Fail("Attachment not found."));
         }
 
-        var dto = await _attachmentService.UploadAsync(file, patientId, patientTreatmentId, User);
-                return Ok(DentalClinic.API.DTOs.Common.ApiResponse<AttachmentDto>.Ok(dto));
+        return File(result.Content, result.ContentType, result.FileName);
     }
 
     [HttpGet("patient/{patientId}")]
@@ -48,7 +49,7 @@ public class AttachmentsController : ControllerBase
     public async Task<IActionResult> ListByPatient(ulong patientId)
     {
         var list = await _attachmentService.ListByPatientAsync(patientId, User);
-            return Ok(DentalClinic.API.DTOs.Common.ApiResponse<object>.Ok(list));
+        return Ok(ApiResponse<object>.Ok(list));
     }
 
     [HttpGet("treatment/{patientTreatmentId}")]
@@ -56,7 +57,7 @@ public class AttachmentsController : ControllerBase
     public async Task<IActionResult> ListByTreatment(ulong patientTreatmentId)
     {
         var list = await _attachmentService.ListByTreatmentAsync(patientTreatmentId, User);
-            return Ok(DentalClinic.API.DTOs.Common.ApiResponse<object>.Ok(list));
+        return Ok(ApiResponse<object>.Ok(list));
     }
 
     [HttpDelete("{id}")]
@@ -64,6 +65,6 @@ public class AttachmentsController : ControllerBase
     public async Task<IActionResult> Delete(ulong id)
     {
         var deleted = await _attachmentService.DeleteAsync(id, User);
-            return Ok(DentalClinic.API.DTOs.Common.ApiResponse<object>.Ok(deleted));
+        return Ok(ApiResponse<object>.Ok(deleted));
     }
 }

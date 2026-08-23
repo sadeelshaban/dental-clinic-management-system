@@ -8,7 +8,29 @@ Full product requirements and API contracts live in [`reference.md`](reference.m
 
 ## Quick start (backend)
 
-### Prerequisites
+### Option A — Docker (recommended for a consistent environment)
+
+```bash
+cp .env.example .env
+# Edit .env — set MARIADB_ROOT_PASSWORD and JWT_SECRET (≥ 32 characters)
+
+docker compose up -d --build
+```
+
+When both containers are **healthy** (`docker compose ps`):
+
+| Link | Purpose |
+|------|---------|
+| [http://localhost:5062/](http://localhost:5062/) | **Swagger UI** — explore and test every endpoint |
+| [http://localhost:5062/api/health](http://localhost:5062/api/health) | Health check (JSON) |
+
+**Swagger login:** `POST /api/auth/login` with `admin@demo.com` / `Admin@123`, then **Authorize** with `Bearer <token>`.
+
+See [`docker/README.md`](docker/README.md) for production overrides, volumes, and troubleshooting.
+
+### Option B — Local .NET + MariaDB
+
+#### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - MariaDB 10.4+ (e.g. XAMPP on Windows)

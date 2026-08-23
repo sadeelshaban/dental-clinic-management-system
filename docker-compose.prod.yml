@@ -1,0 +1,10 @@
+# Production overrides — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      UseHttpsRedirection: "false"
+
+  mariadb:
+    ports: []

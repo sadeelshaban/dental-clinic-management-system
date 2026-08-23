@@ -6,6 +6,17 @@ ASP.NET Core Web API for the Dental Clinic Management System. Connects to **Mari
 
 Requirements and business rules: [`../../reference.md`](../../reference.md).
 
+## Docker
+
+From the repository root:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+See [`../../docker/README.md`](../../docker/README.md) for details.
+
 ## Database setup (database-first)
 
 1. Start MariaDB (e.g. XAMPP).

@@ -146,6 +146,9 @@ public static class ServiceCollectionExtensions
 
             // Operation filter to handle ApiResponse<T> envelope
             options.OperationFilter<ApiResponseOperationFilter>();
+
+            // Operation filter to handle file upload endpoints
+            options.OperationFilter<FileUploadOperationFilter>();
         });
 
         return services;

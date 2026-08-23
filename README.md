@@ -6,7 +6,6 @@ A comprehensive dental clinic management system with multi-tenancy support, buil
 
 - [Backend Setup](#backend-setup)
 - [Environment Variables](#environment-variables)
-- [Testing](#testing)
 - [API Modules](#api-modules)
 - [Production Deployment](#production-deployment)
 
@@ -90,45 +89,6 @@ set Jwt__ExpirationMinutes=60
 A production configuration template is provided at `backend/DentalClinic.API/appsettings.Production.json.example`. Copy this to `appsettings.Production.json` and fill in your actual values. **Never commit `appsettings.Production.json` to version control.**
 
 For detailed production deployment guidance, see `backend/DentalClinic.API/PRODUCTION_DEPLOYMENT.md`.
-
-## Testing
-
-### Running Tests
-
-The backend includes unit and integration tests using xUnit:
-
-```bash
-cd backend/DentalClinic.API.Tests
-dotnet test
-```
-
-### Test Coverage
-
-The test suite covers:
-
-- **Authentication Tests** (`Services/AuthServiceTests.cs`)
-  - Valid credentials login
-  - Invalid password rejection
-  - Inactive user rejection
-  - Non-existent email rejection
-
-- **Patient Service Tests** (`Services/PatientServiceTests.cs`)
-  - Unique patient number generation
-  - Sequential numbering
-  - Multi-tenancy isolation
-
-- **Payment Service Tests** (`Services/PaymentServiceTests.cs`)
-  - Zero amount rejection
-  - Negative amount rejection
-  - Note: Overpayment, partial payment, and full payment tests require a relational database for row locking and are not included in the in-memory test suite
-
-### Test Limitations
-
-Some tests require a relational database provider (MySQL) for features like:
-- Row locking (`ExecuteSqlRawAsync`) in PaymentService and AppointmentService
-- Transaction management
-
-These tests are excluded from the in-memory test suite and should be run as integration tests against a test database.
 
 ## API Modules
 
@@ -266,10 +226,6 @@ Swagger organizes endpoints by controller:
 - **Users** - User management
 - **Expenses** - Expense tracking
 - **Suppliers** - Supplier management
-
-### Smoke Scripts
-
-Smoke scripts in the `scripts/` directory provide optional automated verification. These are **not** the primary manual verification method - Swagger/OpenAPI is the recommended tool for manual API testing.
 
 ## License
 

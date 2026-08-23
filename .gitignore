@@ -130,4 +130,3 @@ Properties/PublishProfiles/
 *.temp
 
 # Test scripts (local development only, contain hardcoded credentials)
-scripts/

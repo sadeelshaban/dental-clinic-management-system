@@ -100,8 +100,7 @@ public static class ServiceCollectionExtensions
                 Title = "Dental Clinic API",
                 Version = "v1",
                 Description = "ASP.NET Core API for dental clinic management (MariaDB 10.4). " +
-                              "All endpoints except login require JWT Bearer authentication. " +
-                              "Rate limiting: 5 login attempts per 15 minutes per IP.",
+                              "All endpoints except login require JWT Bearer authentication.",
                 Contact = new OpenApiContact
                 {
                     Name = "Dental Clinic API Support"

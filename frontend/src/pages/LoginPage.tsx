@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
 import { isApiError } from '@/api/client'
 import { BrandMark } from '@/components/BrandMark'
-import { Button, TextInput } from '@/components/ui/kit'
+import { Button, PasswordInput, TextInput } from '@/components/ui/kit'
 import { LanguageToggle } from '@/i18n/LanguageToggle'
 import { useI18n } from '@/i18n/I18nContext'
 import { CLINIC } from '@/clinic'
@@ -71,7 +71,7 @@ export function LoginPage() {
           </div>
           <div className="field">
             <label htmlFor="password">{t('login.password')}</label>
-            <TextInput id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+            <PasswordInput id="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
           </div>
           <Button type="submit" disabled={busy}>{busy ? t('login.busy') : t('login.submit')}</Button>
         </form>

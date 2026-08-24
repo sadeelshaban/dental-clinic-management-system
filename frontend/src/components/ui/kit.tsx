@@ -1,4 +1,5 @@
-import { useEffect, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { useEffect, useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { IconEye, IconEyeOff } from '@/components/icons'
 import { useI18n, useStatusLabel } from '@/i18n/I18nContext'
 import { statusTone } from '@/utils/format'
 
@@ -35,6 +36,26 @@ export function Field({
 
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input className="control" {...props} />
+}
+
+export function PasswordInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  const { t } = useI18n()
+  const [visible, setVisible] = useState(false)
+
+  return (
+    <div className="password-field">
+      <input className="control" {...props} type={visible ? 'text' : 'password'} />
+      <button
+        type="button"
+        className="password-toggle"
+        onClick={() => setVisible((current) => !current)}
+        aria-label={visible ? t('login.hidePassword') : t('login.showPassword')}
+        aria-pressed={visible}
+      >
+        {visible ? <IconEyeOff /> : <IconEye />}
+      </button>
+    </div>
+  )
 }
 
 export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {

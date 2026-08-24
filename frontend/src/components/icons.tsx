@@ -80,6 +80,12 @@ export const IconPlus = (p: IconProps) => (
 export const IconClose = (p: IconProps) => (
   <svg {...base(p)}><path d="M6 6l12 12M18 6L6 18"/></svg>
 )
+export const IconEye = (p: IconProps) => (
+  <svg {...base(p)}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+)
+export const IconEyeOff = (p: IconProps) => (
+  <svg {...base(p)}><path d="M10 10 4 16M14 14l6-6"/><path d="M9.9 5.1A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a18.2 18.2 0 0 1-4.1 5.2M6.1 6.1C3.3 8.1 2 12 2 12s3.5 7 10 7a10.8 10.8 0 0 0 4.9-1.2"/><path d="M2 2l20 20"/></svg>
+)
 export const IconAlert = (p: IconProps) => (
   <svg {...base(p)}><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
 )

@@ -25,9 +25,13 @@ export function PaymentsPage() {
   const [reason, setReason] = useState('')
   const [patientSearch, setPatientSearch] = useState('')
   const pq = useDebouncedValue(patientSearch)
-  const patients = useAsync(() => pq ? patientsApi.list({ search: pq, pageSize: 8 }) : Promise.resolve({ items: [], page: 1, pageSize: 8, totalCount: 0, totalPages: 0 }), [pq])
+  const patients = useAsync(() => pq ? patientsApi.list({ search: pq, pageSize: 8, isActive: true }) : Promise.resolve({ items: [], page: 1, pageSize: 8, totalCount: 0, totalPages: 0 }), [pq])
   const methods = useAsync(() => paymentMethodsApi.list(true), [])
-  const catalog = useAsync(() => treatmentsApi.list({ isActive: true, pageSize: 100 }), [])
+  const catalog = useAsync(
+    () => (open ? treatmentsApi.list({ isActive: true, pageSize: 100 }) : Promise.resolve(null)),
+    [open],
+  )
+  const catalogItems = catalog.data?.items ?? []
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
     params.get('patientId') ? Number(params.get('patientId')) : null,
   )
@@ -62,12 +66,30 @@ export function PaymentsPage() {
   function onTreatmentChange(value: string) {
     setTreatmentSelection(value)
     if (value.startsWith('cat:')) {
-      const item = catalog.data?.items.find((t) => String(t.treatmentId) === value.slice(4))
+      const item = catalogItems.find((t) => String(t.treatmentId) === value.slice(4))
       if (item) setForm((f) => ({ ...f, amount: String(item.defaultPrice) }))
     } else if (value.startsWith('pt:')) {
       const line = treatments.find((t) => String(t.patientTreatmentId) === value.slice(3))
       if (line) setForm((f) => ({ ...f, amount: String(line.finalAmount) }))
     }
+  }
+
+  function onPatientSearchChange(value: string) {
+    setPatientSearch(value)
+    setSelectedPatientId(null)
+    setTreatmentSelection('')
+    setTreatments([])
+    setForm((f) => ({ ...f, amount: '' }))
+  }
+
+  function openPaymentModal() {
+    setOpen(true)
+    setError('')
+  }
+
+  function closePaymentModal() {
+    setOpen(false)
+    setError('')
   }
 
   async function submit(event: FormEvent) {
@@ -124,7 +146,7 @@ export function PaymentsPage() {
         crumbs={t('pay.crumbs')}
         title={t('pay.title')}
         description={t('pay.lede')}
-        actions={canWrite ? <Button type="button" onClick={() => setOpen(true)}>{t('pay.record')}</Button> : null}
+        actions={canWrite ? <Button type="button" onClick={openPaymentModal}>{t('pay.record')}</Button> : null}
       />
       <div className="toolbar">
         <select className="control" value={voided} onChange={(e) => setVoided(e.target.value)}>
@@ -161,24 +183,43 @@ export function PaymentsPage() {
       ) : null}
 
       {open && canWrite ? (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
+        <div className="modal-backdrop" onClick={closePaymentModal}>
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-            <header><h2>Record payment</h2></header>
+            <header><h2>{t('pay.record')}</h2></header>
             <div className="body stack">
               {error ? <div className="form-error">{error}</div> : null}
               <div className="field">
-                <label>Patient</label>
-                <input className="control" value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} placeholder="Search patient" />
-                {patients.data?.items.map((p) => (
-                  <Button key={p.patientId} type="button" size="sm" variant="ghost" onClick={() => selectPatient(p.patientId, p.fullName)}>{p.fullName}</Button>
-                ))}
+                <label>{t('pay.patient')}</label>
+                <input
+                  className="control"
+                  value={patientSearch}
+                  onChange={(e) => onPatientSearchChange(e.target.value)}
+                  placeholder={t('pay.searchPatient')}
+                />
+                {selectedPatientId ? (
+                  <p className="hint">{t('pay.patientSelected')}: <strong>{patientSearch}</strong></p>
+                ) : null}
+                {!selectedPatientId && patients.data?.items.length ? (
+                  <select
+                    className="control"
+                    value=""
+                    onChange={(e) => {
+                      const patient = patients.data?.items.find((p) => String(p.patientId) === e.target.value)
+                      if (patient) selectPatient(patient.patientId, patient.fullName)
+                    }}
+                  >
+                    <option value="">{t('pay.choosePatient')}</option>
+                    {patients.data.items.map((p) => (
+                      <option key={p.patientId} value={p.patientId}>{p.fullName} · {p.patientNumber}</option>
+                    ))}
+                  </select>
+                ) : null}
               </div>
               <div className="field">
                 <label>{t('pay.treatmentLine')}</label>
                 <select
                   className="control"
                   required
-                  disabled={!selectedPatientId}
                   value={treatmentSelection}
                   onChange={(e) => onTreatmentChange(e.target.value)}
                 >
@@ -192,9 +233,9 @@ export function PaymentsPage() {
                       ))}
                     </optgroup>
                   ) : null}
-                  {catalog.data?.items.length ? (
+                  {catalogItems.length > 0 ? (
                     <optgroup label={t('pay.catalogItems')}>
-                      {catalog.data.items.map((t) => (
+                      {catalogItems.map((t) => (
                         <option key={t.treatmentId} value={`cat:${t.treatmentId}`}>
                           {t.name} · {money(t.defaultPrice)}
                         </option>
@@ -203,7 +244,16 @@ export function PaymentsPage() {
                   ) : null}
                 </select>
                 {!selectedPatientId ? <p className="hint">{t('pay.selectPatientFirst')}</p> : null}
-                {selectedPatientId && catalog.loading ? <p className="hint">{t('pay.loadingCatalog')}</p> : null}
+                {catalog.loading ? <p className="hint">{t('pay.loadingCatalog')}</p> : null}
+                {catalog.error ? (
+                  <div className="form-error row" style={{ alignItems: 'center', gap: 8 }}>
+                    <span>{isApiError(catalog.error) ? catalog.error.message : t('pay.catalogLoadFailed')}</span>
+                    <Button size="sm" variant="ghost" type="button" onClick={() => void catalog.reload()}>{t('common.retry')}</Button>
+                  </div>
+                ) : null}
+                {!catalog.loading && !catalog.error && catalogItems.length === 0 ? (
+                  <p className="hint">{t('pay.catalogEmpty')}</p>
+                ) : null}
               </div>
               <div className="field"><label>Amount</label><input className="control" type="number" min={0.01} step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
               <div className="field">
@@ -224,7 +274,7 @@ export function PaymentsPage() {
               <div className="field"><label>Notes</label><textarea className="control" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             </div>
             <footer>
-              <Button variant="ghost" type="button" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button variant="ghost" type="button" onClick={closePaymentModal}>Cancel</Button>
               <Button type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save payment'}</Button>
             </footer>
           </form>

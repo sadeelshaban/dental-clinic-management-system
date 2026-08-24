@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
+import { staffDisplayName } from '@/clinic'
 import { Role } from '@/auth/roles'
 import { useI18n } from '@/i18n/I18nContext'
 import type { MessageKey } from '@/i18n/strings'
@@ -19,6 +20,7 @@ import {
   IconTreatment,
   IconUsers,
   IconVisit,
+  IconLogout,
 } from '@/components/icons'
 
 const links: { to: string; labelKey: MessageKey; icon: typeof IconDashboard; roles: readonly string[] }[] = [
@@ -38,8 +40,9 @@ const links: { to: string; labelKey: MessageKey; icon: typeof IconDashboard; rol
 ]
 
 export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }) {
-  const { user } = useAuth()
-  const { t } = useI18n()
+  const { user, logout } = useAuth()
+  const { t, locale } = useI18n()
+  const navigate = useNavigate()
   const role = user?.role
 
   return (
@@ -74,6 +77,18 @@ export function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () =>
         </div>
       </nav>
       <div className="sidebar-foot">
+        <div className="sidebar-user">{staffDisplayName(user, locale)}</div>
+        <button
+          type="button"
+          className="sidebar-signout"
+          onClick={() => {
+            logout()
+            onNavigate()
+            navigate('/login')
+          }}
+        >
+          <IconLogout /> {t('header.signOut')}
+        </button>
         <a href={CLINIC.phoneHref}>{CLINIC.phone}</a>
         <span>{t('clinic.address')}</span>
       </div>

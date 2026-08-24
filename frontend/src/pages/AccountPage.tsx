@@ -1,17 +1,20 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { authApi, paymentMethodsApi } from '@/api/services'
 import { isApiError } from '@/api/client'
 import { staffDisplayName, staffRoleLabel } from '@/clinic'
 import { useI18n } from '@/i18n/I18nContext'
 import { useAuth, useCan } from '@/auth/AuthContext'
 import { Role } from '@/auth/roles'
+import { IconLogout } from '@/components/icons'
 import { Button, ErrorState, LoadingSkeleton, PageHeader, StatusBadge } from '@/components/ui/kit'
 import { useToast } from '@/components/ui/Toast'
 import { useAsync } from '@/hooks/useAsync'
 
 export function AccountPage() {
   const { t, locale } = useI18n()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const isAdmin = useCan([Role.Admin])
   const toast = useToast()
   const [currentPassword, setCurrentPassword] = useState('')
@@ -97,6 +100,20 @@ export function AccountPage() {
           </form>
         </section>
       ) : null}
+      <section className="card card-pad account-signout" style={{ marginTop: 16 }}>
+        <h2>{t('acct.session')}</h2>
+        <p className="metric-note">{t('acct.signOutHint')}</p>
+        <Button
+          variant="danger"
+          type="button"
+          onClick={() => {
+            logout()
+            navigate('/login')
+          }}
+        >
+          <IconLogout /> {t('header.signOut')}
+        </Button>
+      </section>
     </div>
   )
 }

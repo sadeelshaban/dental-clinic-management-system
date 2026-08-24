@@ -1,13 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { patientTreatmentsApi, patientsApi, paymentMethodsApi, paymentsApi } from '@/api/services'
+import { patientTreatmentsApi, patientsApi, paymentMethodsApi, paymentsApi, treatmentsApi } from '@/api/services'
 import { isApiError } from '@/api/client'
 import { useCan } from '@/auth/AuthContext'
 import { Role } from '@/auth/roles'
 import { Button, ConfirmDialog, EmptyState, ErrorState, LoadingSkeleton, PageHeader, Pagination, StatusBadge } from '@/components/ui/kit'
 import { useToast } from '@/components/ui/Toast'
 import { useAsync, useDebouncedValue } from '@/hooks/useAsync'
-import type { CreatePaymentRequest, PatientTreatmentListItemDto } from '@/types/api'
+import type { CreatePatientTreatmentRequest, CreatePaymentRequest, PatientTreatmentListItemDto } from '@/types/api'
 import { formatDateTime, fromDateTimeLocal, localDateTimeValue, money } from '@/utils/format'
 import { useI18n } from '@/i18n/I18nContext'
 
@@ -27,42 +27,94 @@ export function PaymentsPage() {
   const pq = useDebouncedValue(patientSearch)
   const patients = useAsync(() => pq ? patientsApi.list({ search: pq, pageSize: 8 }) : Promise.resolve({ items: [], page: 1, pageSize: 8, totalCount: 0, totalPages: 0 }), [pq])
   const methods = useAsync(() => paymentMethodsApi.list(true), [])
+  const catalog = useAsync(() => treatmentsApi.list({ isActive: true, pageSize: 100 }), [])
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
+    params.get('patientId') ? Number(params.get('patientId')) : null,
+  )
   const [treatments, setTreatments] = useState<PatientTreatmentListItemDto[]>([])
-  const [form, setForm] = useState({ patientTreatmentId: '', amount: '', method: 'CASH', paymentMethodId: '', paymentDate: localDateTimeValue(), referenceNumber: '', notes: '' })
+  const [treatmentSelection, setTreatmentSelection] = useState('')
+  const [form, setForm] = useState({ amount: '', method: 'CASH', paymentMethodId: '', paymentDate: localDateTimeValue(), referenceNumber: '', notes: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const list = useAsync(() => paymentsApi.list({ page, pageSize: 20, isVoided: voided === '' ? null : voided === 'true', patientId: params.get('patientId') ? Number(params.get('patientId')) : undefined }), [page, voided, params])
 
   useEffect(() => { if (params.get('new') === '1') setOpen(true) }, [params])
 
+  useEffect(() => {
+    if (!selectedPatientId) return
+    void loadTreatments(selectedPatientId)
+    void patientsApi.get(selectedPatientId).then((p) => setPatientSearch(p.fullName)).catch(() => {})
+  }, [selectedPatientId])
+
   async function loadTreatments(patientId: number) {
     const res = await patientTreatmentsApi.list({ patientId, pageSize: 50 })
     setTreatments(res.items.filter((t) => t.status !== 'PAID' && t.status !== 'VOIDED'))
   }
 
+  function selectPatient(patientId: number, fullName: string) {
+    setSelectedPatientId(patientId)
+    setPatientSearch(fullName)
+    setTreatmentSelection('')
+    setForm((f) => ({ ...f, amount: '' }))
+    void loadTreatments(patientId)
+  }
+
+  function onTreatmentChange(value: string) {
+    setTreatmentSelection(value)
+    if (value.startsWith('cat:')) {
+      const item = catalog.data?.items.find((t) => String(t.treatmentId) === value.slice(4))
+      if (item) setForm((f) => ({ ...f, amount: String(item.defaultPrice) }))
+    } else if (value.startsWith('pt:')) {
+      const line = treatments.find((t) => String(t.patientTreatmentId) === value.slice(3))
+      if (line) setForm((f) => ({ ...f, amount: String(line.finalAmount) }))
+    }
+  }
+
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (!form.patientTreatmentId || Number(form.amount) <= 0) {
-      setError('Treatment and a positive amount are required.')
+    if (!selectedPatientId) {
+      setError(t('pay.selectPatient'))
+      return
+    }
+    if (!treatmentSelection || Number(form.amount) <= 0) {
+      setError(t('pay.treatmentAmountRequired'))
       return
     }
     setBusy(true); setError('')
-    const body: CreatePaymentRequest = {
-      patientTreatmentId: Number(form.patientTreatmentId),
-      amount: Number(form.amount),
-      method: form.method,
-      paymentMethodId: form.paymentMethodId ? Number(form.paymentMethodId) : null,
-      paymentDate: fromDateTimeLocal(form.paymentDate),
-      referenceNumber: form.referenceNumber || null,
-      notes: form.notes || null,
-    }
     try {
+      let patientTreatmentId: number
+      if (treatmentSelection.startsWith('cat:')) {
+        const treatmentId = Number(treatmentSelection.slice(4))
+        const body: CreatePatientTreatmentRequest = {
+          patientId: selectedPatientId,
+          treatmentId,
+          quantity: 1,
+          discountAmount: 0,
+          treatmentDate: fromDateTimeLocal(form.paymentDate),
+        }
+        const created = await patientTreatmentsApi.create(body)
+        patientTreatmentId = created.patientTreatmentId
+      } else {
+        patientTreatmentId = Number(treatmentSelection.slice(3))
+      }
+      const body: CreatePaymentRequest = {
+        patientTreatmentId,
+        amount: Number(form.amount),
+        method: form.method,
+        paymentMethodId: form.paymentMethodId ? Number(form.paymentMethodId) : null,
+        paymentDate: fromDateTimeLocal(form.paymentDate),
+        referenceNumber: form.referenceNumber || null,
+        notes: form.notes || null,
+      }
       await paymentsApi.create(body)
-      toast.push('Payment recorded. Status is recalculated by the server.')
+      toast.push(t('pay.saved'))
       setOpen(false)
+      setSelectedPatientId(null)
+      setTreatmentSelection('')
+      setPatientSearch('')
       void list.reload()
     } catch (err) {
-      setError(isApiError(err) ? err.message : 'Unable to record payment.')
+      setError(isApiError(err) ? err.message : t('pay.saveFailed'))
     } finally { setBusy(false) }
   }
 
@@ -118,15 +170,40 @@ export function PaymentsPage() {
                 <label>Patient</label>
                 <input className="control" value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} placeholder="Search patient" />
                 {patients.data?.items.map((p) => (
-                  <Button key={p.patientId} type="button" size="sm" variant="ghost" onClick={() => { setPatientSearch(p.fullName); void loadTreatments(p.patientId) }}>{p.fullName}</Button>
+                  <Button key={p.patientId} type="button" size="sm" variant="ghost" onClick={() => selectPatient(p.patientId, p.fullName)}>{p.fullName}</Button>
                 ))}
               </div>
               <div className="field">
-                <label>Treatment line</label>
-                <select className="control" required value={form.patientTreatmentId} onChange={(e) => setForm({ ...form, patientTreatmentId: e.target.value })}>
-                  <option value="">Select treatment</option>
-                  {treatments.map((t) => <option key={t.patientTreatmentId} value={t.patientTreatmentId}>{t.treatmentName} · {t.status} · {money(t.finalAmount)}</option>)}
+                <label>{t('pay.treatmentLine')}</label>
+                <select
+                  className="control"
+                  required
+                  disabled={!selectedPatientId}
+                  value={treatmentSelection}
+                  onChange={(e) => onTreatmentChange(e.target.value)}
+                >
+                  <option value="">{t('pay.selectTreatment')}</option>
+                  {treatments.length > 0 ? (
+                    <optgroup label={t('pay.existingLines')}>
+                      {treatments.map((t) => (
+                        <option key={t.patientTreatmentId} value={`pt:${t.patientTreatmentId}`}>
+                          {t.treatmentName} · {t.status} · {money(t.finalAmount)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {catalog.data?.items.length ? (
+                    <optgroup label={t('pay.catalogItems')}>
+                      {catalog.data.items.map((t) => (
+                        <option key={t.treatmentId} value={`cat:${t.treatmentId}`}>
+                          {t.name} · {money(t.defaultPrice)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </select>
+                {!selectedPatientId ? <p className="hint">{t('pay.selectPatientFirst')}</p> : null}
+                {selectedPatientId && catalog.loading ? <p className="hint">{t('pay.loadingCatalog')}</p> : null}
               </div>
               <div className="field"><label>Amount</label><input className="control" type="number" min={0.01} step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
               <div className="field">
